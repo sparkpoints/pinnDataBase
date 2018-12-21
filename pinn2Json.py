@@ -1,437 +1,669 @@
 #!/usr/bin/env python
-# coding=utf-8
-
-
-import logging
-import os
+# coding = utf-8
+import json
+import re
 import sys
+from optparse import OptionParser
 
 import numpy as np
-from box import BoxList
+from box import Box
 
-from pinn2Json import pinn2Json
+# ----------------------------------------- #
+"""
+Use JSON structured text file readers to parse pinnacle file into a muliple
+layered dictionary.
 
-# from box import Box
+A pinnacle file is similar in structure to a json file although not identical. Script parses thepinnacle file and resolves the syntax differences to make a
+valid json specification conforming
+string which contains all the data present in the original file.
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
-                    datefmt='%a, %d %b %Y %H:%M:%S',
-                    filename='convert_whole_patient.log',
-                    filemode='w')
-# 定义一个StreamHandler，将INFO级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-console.setFormatter(formatter)
-logging.getLogger('').addHandler(console)
+Issue with new line inside comments field in Patient file.
+Issue with plan.defaults file Line :
+    image_file      : ../ImageSet_1
+"""
 
 
-class parseWholePatient(object):
-    def __init__(self, sourceDir):
-        if not os.path.isdir(sourceDir):
-            logging.info('target dir %s not exist!', sourceDir)
-            raise 'IOError'
+# ----------------------------------------- #
 
-        self.sourceDir = sourceDir
-        self.patientBaseDict = None
-        self.patientImageSetList = BoxList()
-        self.patientPlanList = BoxList()
 
-    # def readPatient(self,parseDir):
-    #     """
-    #     one patient may contain multi-plans, parse one by one
-    #     :return: self.patient.planList
-    #     """
-    #     infoDict = None
-    #     if os.path.isfile(os.path.join(parseDir, 'Patient')):
-    #         infoDict = pinn2Json().read(os.path.join(parseDir, 'Patient'))
-    #     else:
-    #         logging.error('not a vilidation plan!')
-    #     return infoDict
+class pinn2Json(object):
+    def __init__(self):
+        return
 
-    def getPatientDict(self):
-        parseDir = self.sourceDir
-
-        if os.path.isfile(os.path.join(parseDir, 'Patient')):
-            baseDict = pinn2Json().read(os.path.join(parseDir, 'Patient'))
+    def read(self, pinnFile):
+        """
+        Read the pinnacle file and return as a dictionary or array of dictionaries.
+        """
+        with open(pinnFile, 'r', encoding='ISO-8859-1') as f:
+            fileTxt = f.read()
+        fileTxt = self.pinnProcess(fileTxt)
+        if fileTxt:
+            fileTxt = self.pinn2Json(fileTxt)
+            f.close()
+            f = open(pinnFile + '.json', 'w')
+            f.write(fileTxt)
+            f.close()
+            return Box(json.loads(fileTxt))
+            # return DotMap(json.loads(fileTxt))
         else:
-            logging.error('may be a empty plan! skip')
+            print("emptyfile\n")
             return None
 
-        if 'ImageSetList' in baseDict:
-            image_set_list = baseDict.get('ImageSetList')
-            for imageSet in image_set_list:
-                logging.info('ImageSet_%s', imageSet.ImageSetID)
-                if 'phantom' in imageSet.SeriesDescription:
-                    logging.warning('this is Phantom for QA, skip!')
-                    continue
-                # read CT image set of this plan
-                (imageSet['CTHeader'], imageSet['CTData']
-                 ) = self.readCT(imageSet.ImageName)
-                self.patientImageSetList.append(imageSet)
+    # return pinnObjDict.pinnObjDict(json.loads(fileTxt),pinnFile)
 
-        if 'PlanList' in baseDict:
-            plan_list = baseDict.get('PlanList')
-            for plan in plan_list:
-                logging.info('plan_%s,base on ImageSet_%s',
-                             plan.PlanID, plan.PrimaryCTImageSetID)
-                if 'QA' in plan.PlanName or 'copy' in plan.PlanName:
-                    logging.warning('this is Copy or QA plan, skip!')
-                else:
-                    planDirName = 'Plan_' + (str)(plan.PlanID)
-                    logging.info('Reading plan:%s ......', planDirName)
-                    plan['planData'] = self.readPlan(planDirName)
-                self.patientPlanList.append(plan)
+    # ----------------------------------------- #
 
-    def readPlan(self, planDirRefPath):
+    def reads(self, fileTxt):
         """
-        read one plan:
-            data List:
-            plan.Points,
-            plan.roi,
-            plan.Trial,
-        :param planDir: plan relative path ./Plan_N
-        :return: dict plan
+        Translate the pinnacle file text to a python dictionary object.
         """
-        planDict = None
-        planDirAbsPath = os.path.join(self.sourceDir, planDirRefPath)
-        if not os.path.isdir(planDirAbsPath):
-            self.logging.info("directory %s not exsit!", planDirAbsPath)
-            raise IOError
+        fileTxt = self.pinn2Json(fileTxt)
 
-        if os.path.isfile(os.path.join(planDirAbsPath, 'plan.PlanInfo')):
-            planDict = pinn2Json().read(
-                os.path.join(planDirAbsPath, 'plan.PlanInfo'))
+        # data = Box(json.loads(fileTxt))
+        # return data
+        return Box(json.loads(fileTxt))
+        # return pinnObjDict.pinnObjDict(json.loads(fileTxt),pinnFile)
 
-        if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Points')):
-            planDict['Points'] = pinn2Json().read(
-                os.path.join(planDirAbsPath, 'plan.Points'))
+    # ----------------------------------------- #
 
-        if os.path.isfile(os.path.join(planDirAbsPath, 'plan.VolumeInfo')):
-            planDict['VolumeInfo'] = pinn2Json().read(
-                os.path.join(planDirAbsPath, 'plan.VolumeInfo'))
-
-        if os.path.isfile(os.path.join(planDirAbsPath, 'plan.roi')):
-            planDict['rois'] = pinn2Json().read(
-                os.path.join(planDirAbsPath, 'plan.roi'))
-            self.getContours(planDict['rois'])
-
-        # if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Pinnacle.Machines')):
-        #     planDict['machines'] = pinn2Json().read(
-        #         os.path.join(planDirAbsPath, 'plan.Pinnacle.Machines'))
-
-        if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Trial')):
-            planTrialData = pinn2Json().read(
-                os.path.join(planDirAbsPath, 'plan.Trial'))
-            if 'TrialList' in planTrialData:
-                currentTrailList = planTrialData['TrialList']
-                for currentTrail in currentTrailList:
-                    data = self.readTrialMaxtrixData(
-                        planDirAbsPath, currentTrail, planDict)
-            else:
-                data = self.readTrialMaxtrixData(
-                    planDirAbsPath, planTrialData['Trial'], planDict)
-
-            planDict['Trial'] = data
-        return planDict
-
-    def printPatientBaseInfo(self, patientDataDict):
+    def readJson(self, pinnFile):
         """
-        Parse the "Patient_XX/Patient" file, get the plan Frame.
+        Read the pinnacle data from a file in JSON format
         """
-        if patientDataDict:
-            logging.info("PatientName:%s%s", patientDataDict.LastName,
-                         patientDataDict.Firstname)
-            logging.info("MRN:%s", patientDataDict.MedicalRecordNumber)
-            logging.info("\nimageList:")
-            if 'ImageSetList' in patientDataDict:
-                for imageSet in patientDataDict.ImageSetList:
-                    logging.info(imageSet.ImageName, imageSet.ImageSetID)
+        f = open(pinnFile)
+        fileTxt = f.read()
+        f.close()
 
-            logging.info("\nplanList:")
-            if 'PlanList' in patientDataDict:
-                for plan in patientDataDict.PlanList:
-                    logging.info(plan.PlanName, plan.PlanID,
-                                 plan.PrimaryCTImageSetID)
+        return Box(json.loads(fileTxt))
+        # return pinnObjDict.pinnObjDict(json.loads(fileTxt))
 
-    def readCT(self, CTName):
+    # ----------------------------------------- #
+
+    def writeJson(self, pinnFile, jsonFile):
         """
-        Read a CT cube for a plan
+        Write the pinnacle file to a new file in JSON format
         """
-        imHdr = pinn2Json().read(
-            os.path.join(self.sourceDir, (CTName + '.header')))
+        f = open(pinnFile)
+        fileTxt = self.pinn2Json(f.read())
+        f.close()
 
-        # Read the data from the file
-        imData = np.fromfile(os.path.join(
-            self.sourceDir, (CTName + '.img')), dtype='int16')
+        f2 = open(jsonFile, 'w')
+        f2.write(fileTxt)
+        f2.close()
 
-        # Reshape to a 3D array
-        imData = imData.reshape((imHdr.z_dim, imHdr.y_dim, imHdr.x_dim))
+    # ----------------------------------------- #
 
-        # Solaris uses big endian schema.
-        if sys.byteorder == 'little':
-            if imHdr.byte_order == 1:
-                imData = imData.byteswap(True)
-        else:
-            if imHdr.byte_order == 0:
-                imData = imData.byteswap(True)
-
-        return imHdr, imData
-
-    def getContours(self, planControurData):
-
-        if 'roiList' in planControurData:
-            roiList = planControurData['roiList']
-            for curROI in roiList:
-                logging.info(curROI.name)
-                logging.info(curROI.num_curve)
-
-
-
-    def readTrialMaxtrixData(self, trialBasePath, curTrial, planDict):
-
-        planPoints = planDict['Points']
-        doseHdr = curTrial.DoseGrid
-        dose = np.zeros((doseHdr.Dimension.Z,
-                         doseHdr.Dimension.Y,
-                         doseHdr.Dimension.X))
-        for pInd, ps in enumerate(curTrial.PrescriptionList):
-            logging.info('%s:%d:%d',ps.Name,ps.PrescriptionDose,ps.NumberOfFractions)
-
-            for bInd, bm in enumerate(curTrial.BeamList):
-                try:
-                    # Get the name of the file where the beam dose is saved -
-                    # PREVIOUSLY USED DoseVarVolume ?
-                    doseFile = os.path.join(trialBasePath,
-                                            "plan.Trial.binary.%03d" %
-                                            int(bm.DoseVolume.split('-')[1]))
-
-                    # Read the dose from the file
-                    bmDose = np.fromfile(doseFile, dtype='float32')
-
-                    if bmDose.nbytes == 0:
-                        raise DoseInvalidException('')
-
-                except IOError or SystemError:
-                    raise DoseInvalidException('')
-                # Reshape to a 3D array
-                bmDose = bmDose.reshape((doseHdr.Dimension.Z,
-                                         doseHdr.Dimension.Y,
-                                         doseHdr.Dimension.X))
-
-                # Solaris uses big endian schema.
-                # Almost everything else is little endian
-                if sys.byteorder == 'little':
-                    bmDose = bmDose.byteswap(True)
-
-                bmFactor = bm.MonitorUnitInfo.NormalizedDose * \
-                           bm.MonitorUnitInfo.CollimatorOutputFactor * \
-                           bm.MonitorUnitInfo.TotalTransmissionFraction
-                dosePerMU = 0.665
-                MUs = bm.MonitorUnitInfo.PrescriptionDose / (bmFactor * dosePerMU)
-                logging.info('%s:%d', bm.Name,MUs)
-
-                # Weight the dose cube by the beam weight
-                dose += (bmDose * bm.Weight)
-
-                # rescale dose to prescriptionDose
-                totalPrescriptionDose = ps.PrescriptionDose * ps.NumberOfFractions
-                doseAtPoint = totalPrescriptionDose * 1
-                if ps.Name == bm.PrescriptionName:
-                    if ps.WeightsProportionalTo == 'Point Dose':
-                        for pt in planPoints['PoiList']:
-                            if pt.Name == ps.PrescriptionPoint:
-                                doseAtPoint = self.doseAtCoord(dose, doseHdr, pt.XCoord, pt.YCoord, pt.ZCoord)
-
-                                logging.info(doseAtPoint)
-
-                dose = dose * (doseAtPoint / totalPrescriptionDose)
-        return dose, doseHdr
-
-
-    def readDoses(self, planTrialData, planBasePath):
+    def pinnProcess(self, pinnFileText):
         """
-        input:  Read a dose cube for a trial in a given plan and
-        return: a numpy array
-
-        Currently tested for:
-                (1) Dose is prescribed to a norm point;
-                        beam weights are proportional to point dose
-                        and control point dose is not stored.
-                (2) Dose is prescribed to mean dose of target;
+        before convert, process the raw pinnacle format text
         """
-        # trialFile = os.path.join(self.sourceDir, 'plan.Trial')
-        # if not os.path.isfile(trialFile):
-        #     self.logging.info("not such file %s", trialFile)
+        # Remove single line comments
+        pinnFileText = re.sub('^//.*?\n', '', pinnFileText, re.MULTILINE)
+        pinnFileText = re.sub('//.*?\n', '\n', pinnFileText)
+
+        # Remove block comments
+        pinnFileText = re.sub(
+            r'\/\*[^*]*\*+([^/][^*]*\*+)*\/', '', pinnFileText, re.DOTALL)
+        pinnFileText = re.sub(r'\n\n', '', pinnFileText)
+
+        return pinnFileText
+
+    def pinn2Json(self, pinnFileText):
+        """
+        Convert pinnacle format text to JSON format text
+        """
+        # Add an enclosing parenthesis for the file
+
+        sectionStart, sectionEnd, sectionDepth = self.findSectionBrakes(
+            pinnFileText)
+
+        # if len(sectionStart) == 0 and len(sectionEnd) == 0 and len(sectionDepth) == 0:
         #     return None
-        # trialData = pinn2Json().read(trialFile)
-        # pts = pinn2Json().read(os.path.join(self.sourceDir, 'plan.Points'))
-        if not planTrialData:
-            raise IOError
 
-        pts = pinn2Json().read(
-            os.path.join(planBasePath, 'plan.Points'))
-        # pts = pointsList['']
+        pinnFileText = self.dotHeirarchyToPinnFormat(pinnFileText)
 
-        trialList = []
-        doseDataDict = {}
-        dose = None
-        if 'TrialList' in planTrialData:
-            logging.info(
-                ('plan has %d Trials', len(planTrialData.TrialList)))
-            for curTrial in planTrialData.TrialList:
-                trialList.append(curTrial)
-        else:
-            logging.info(('plan has %d Trials', len(planTrialData.Trial)))
-            trialList.append(planTrialData.Trial)
+        # print(pinnFileText[:150])
 
-        for curTrial in trialList:
-            doseHdr = curTrial.DoseGrid
-            doseData = np.zeros((doseHdr.Dimension.Z,
-                                 doseHdr.Dimension.Y,
-                                 doseHdr.Dimension.X))
+        # For opening objects add an opening list to contain them:
+        #	E.g. files start with Trial{ ... } followed by another Trial{ ... }
+        #		 should start with TrialList{ Trial{...} Trial{...} }
+        sectionStart, sectionEnd, sectionDepth = self.findSectionBrakes(
+            pinnFileText)
 
-            for bInd, bm in enumerate(curTrial.BeamList):
-                try:
-                    # Get the name of the file where the beam dose is saved -
-                    # PREVIOUSLY USED DoseVarVolume ?
-                    doseFile = os.path.join(planBasePath,
-                                            "plan.Trial.binary.%03d" %
-                                            int(bm.DoseVolume.split('-')[1]))
+        # Files that contain primary sections need an incasing list for consistancy with the rest of the file.
+        # E.g. this:				becomes:
+        #		 	roi ={				roiList ={
+        #				...					roi ={
+        # 			}; 							...
+        # 			roi ={					};
+        # 				...					roi ={
+        # 			}; 							...
+        #									};
+        #								};
+        numPrimaries = 0
+        sectionName = []
+        primaryStart = []
+        primaryEnd = []
+        for sDepth, sStart, sEnd in zip(sectionDepth, sectionStart, sectionEnd):
+            if sDepth == 0:
+                numPrimaries += 1
+                # sName = re.search('(?<=\n).*(?=\=$)', pinnFileText[:sStart]).group()
+                sName = re.search(
+                    '^.*(?=\=$)', pinnFileText[:sStart], re.MULTILINE).group()
+                sectionName.append(sName)
+                primaryStart.append(sStart)
+                primaryEnd.append(sEnd)
 
-                    # Read the dose from the file
-                    bmDose = np.fromfile(doseFile, dtype='float32')
+        if numPrimaries > 0:
+            # Find first repeated primary section
+            for sName in set(sectionName):
+                if sectionName.count(sName) > 1:
+                    pStart = primaryStart[sectionName.index(sName)]
+                    pEnd = primaryEnd[len(sectionName) -
+                                      sectionName[::-1].index(sName) - 1]
+                    pinnFileText = pinnFileText[:pStart - len(sName) - 1] + sName.strip() + \
+                                   "List ={\n" + sName + "=" + pinnFileText[pStart:pEnd] + "\n};\n" + \
+                                   pinnFileText[pEnd:]
+                    break
 
-                    if bmDose.nbytes == 0:
-                        raise DoseInvalidException('')
+            # match1 = re.search("\w*(?= {0,1}={)",pinnFileText)
+            # objName = pinnFileText[match1.start():match1.end()]
+            # pinnFileText = pinnFileText[:match1.start()] + objName + "List ={\n" + pinnFileText[match1.start():] + "\n};\n"
 
-                except IOError or SystemError:
-                    raise DoseInvalidException('')
-                # Reshape to a 3D array
-                bmDose = bmDose.reshape((doseHdr.Dimension.Z,
-                                         doseHdr.Dimension.Y,
-                                         doseHdr.Dimension.X))
+        # f1 = open('debug01','w')
+        # f1.write(pinnFileText)
+        # f1.close()
 
-                # Solaris uses big endian schema.
-                # Almost everything else is little endian
-                if sys.byteorder == 'little':
-                    bmDose = bmDose.byteswap(True)
+        sectionStart2, sectionEnd2, sectionDepth2 = self.findSectionBrakes(
+            pinnFileText)
 
-                doseFactor = 1.0
+        # add by peteryang
+        # pinnFileText = re.sub(r'#(\d?)\s*(=\{)',r'Number\1 \2',pinnFileText)
+        # pinnFileText = re.sub('^#0\s*={','Number0 ={',pinnFileText)
+        # pinnFileText = re.sub('\n#1\s*={','Number1 ={',pinnFileText)
+        pinnFileText = re.sub('\+*', '', pinnFileText)
+        # Remove single line comments
+        pinnFileText = re.sub('^//.*?\n', '', pinnFileText, re.MULTILINE)
+        pinnFileText = re.sub('//.*?\n', '\n', pinnFileText)
 
-                # Weight the dose cube by the beam weight
-                # Assume dose is prescribed to a norm point and beam weights are proportional to point dose
-                doseAtPoint = 0.0
+        # Remove block comments
+        pinnFileText = re.sub(
+            r'\/\*[^*]*\*+([^/][^*]*\*+)*\/', '', pinnFileText, re.DOTALL)
 
-                prescriptionPoint = []
-                prescriptionDose = []
-                prescriptionPointDose = []
-                prescriptionPointDoseFactor = []
+        # Protect = sign when inside string quotation by changing to @$, will be changed back later
+        pinnFileText = re.sub(
+            r'("[\w \t;,\-\+\.]*)(=)([\w \t;,\-\+\.]*")', r'\1@$\3', pinnFileText)
 
-                for pp in curTrial.PrescriptionList:
-                    if pp.Name == bm.PrescriptionName:
-                        prescriptionDose.append(
-                            pp.PrescriptionDose * pp.NumberOfFractions)
-                        if pp.WeightsProportionalTo == 'Point Dose':
-                            for pt in pts.PoiList:
-                                if pt.Name == pp.PrescriptionPoint:
-                                    doseAtPoint = self.doseAtCoord(
-                                        bmDose, doseHdr, pt.XCoord, pt.YCoord, pt.ZCoord)
-                                    doseFactor = pp.PrescriptionDose * \
-                                        pp.NumberOfFractions * \
-                                        (bm.Weight * 0.01 / doseAtPoint)
+        # f1 = open('debug02','w')
+        # f1.write(pinnFileText)
+        # f1.close()
 
-                                    prescriptionPoint.append(
-                                        [pt.XCoord, pt.YCoord, pt.ZCoord])
-                                    prescriptionPointDose.append(doseAtPoint)
-                                    prescriptionPointDoseFactor.append(
-                                        doseFactor)
-                        elif pp.WeightsProportionalTo == 'ROI Mean':
-                            logging.info('get ROI mean dose')
+        # In some pinnacle files : is used for string equality instead of = "" change for consistency
+        pinnFileText = re.sub(
+            r'\n([ \t\w\^\._-]*) *: *([ \t\w\^\.:/_-]*)', r'\n\1 = "\2";', pinnFileText)
 
-                dose += (bmDose * doseFactor)
-        for bm, pD, pp in zip(range(len(prescriptionPointDose)), prescriptionPointDose, prescriptionPoint):
-            indPP = coordToIndex(doseHdr, pp[0], pp[1], pp[2])
+        # At end of line change ; to , and at start of line add a " to start of key
+        pinnFileText = re.sub(';\n*\s*(?=[\w#])', ',\n"', pinnFileText)
 
-        return dose, doseHdr
-        #         doseData += bmDose
-        #     doseDataDict[(curTrial.Name + 'DoseArray')] = doseData
-        # return doseDataDict
+        # f1 = open('debug03','w')
+        # f1.write(pinnFileText)
+        # f1.close()
 
-    def coordToIndex(self, imHdr, xCoord, yCoord, zCoord):
-        """
-        Convert corrdinate positions to coordinate indices
-        """
+        # For lines ending in { make sure following line has a "
+        pinnFileText = re.sub('{\n\s*(?=[A-Za-z#])', '{\n"', pinnFileText)
 
-        # coord in cm from primary image centre
-        xCoord -= imHdr.Origin.X
-        yCoord = imHdr.Origin.Y + imHdr.Dimension.Y * imHdr.VoxelSize.Y - yCoord
-        zCoord -= imHdr.Origin.Z
+        # f1 = open('debug04','w')
+        # f1.write(pinnFileText)
+        # f1.close()
 
-        # coord now in cm from start of dose cube
-        xCoord /= imHdr.VoxelSize.X
-        yCoord /= imHdr.VoxelSize.Y
-        zCoord /= imHdr.VoxelSize.Z
+        # If there is a key on the first line then it also needs a "
+        pinnFileText = re.sub('\A\s*(?=[A-Za-z#])', '"', pinnFileText)
 
-        # coord now in pixels from start of dose cube
-        return xCoord, yCoord, zCoord
+        # f1 = open('debug05','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # And last line needs the semicolon removed
+        pinnFileText = re.sub(';\s*\Z', '', pinnFileText)
+
+        # Remove semicolon for lines followed by a closing paren
+        pinnFileText = re.sub(';\n*\s*}', '\n}', pinnFileText)
+
+        # Add " to end of key and change key, value separator from = to :
+        pinnFileText = re.sub('\s*=\s*', '" : ', pinnFileText)
+
+        # f1 = open('debug06','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # Return the = inside quotation marks
+        pinnFileText = re.sub('@$', '=', pinnFileText)
+
+        # Add an enclosing parenthesis for the file
+        pinnFileText = "{\n" + pinnFileText + "\n}\n"
+        # f1 = open('debug07','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # Convert plan.roi points into plan.Trial Points[], vertices,triangles,
+        pinnFileText = re.sub(
+            r'\n\s*"points" ?: ?{\n', r'\n"Points[]" :{\n', pinnFileText)
+        pinnFileText = re.sub(
+            r'\n\s*"vertices" ?: ?{\n', r'\n"Vertices[]" :{\n', pinnFileText)
+        pinnFileText = re.sub(
+            r'\n\s*"triangles" ?: ?{\n', r'\n"Triangles[]" :{\n', pinnFileText)
+        # Convert N N N lines into [ N, N, N ], lines, where N is a number that might be negative and might have a decimal point.
+        pinnFileText = re.sub(
+            r'\n\s*(\-?[0-9]+\.?[0-9]*)\s(\-?[0-9]+\.?[0-9]*)\s(\-?[0-9]+\.?[0-9]*)\s*(?=\n)', r'\n[ \1, \2, \3 ],',
+            pinnFileText)
+
+        # in plan.pinnacle.Machines  N,N, -> [N,N]
+        pinnFileText = re.sub(
+            r'\n\s*(\-?[0-9]+\.?[0-9]*),(\-?[0-9]+\.?[0-9]*),\s*(?=\n)', r'\n[ \1, \2 ],', pinnFileText)
+        pinnFileText = re.sub(
+            r'\n\s*(\-?[0-9]+\.?[0-9]*),(\-?[0-9]+\.?[0-9]*)\s*(?=\n)', r'\n[ \1, \2 ],', pinnFileText)
+
+        # [e-01 e-01 e-01]
+        pinnFileText = re.sub(
+            r'\n\s*(\-?[0-9]+\.?[0-9]*e-[0-9]*)\s(\-?[0-9]+\.?[0-9]*e-[0-9]*)\s(\-?[0-9]+\.?[0-9]*e-[0-9]*)\s*(?=\n)',
+            r'\n[ \1, \2, \3 ],', pinnFileText)
+        # [e-01 y z]
+        pinnFileText = re.sub(
+            r'\n\s*(\-?[0-9]+\.?[0-9]*e-[0-9]*)\s(\-?[0-9]+\.?[0-9]*)\s(\-?[0-9]+\.?[0-9]*)\s*(?=\n)',
+            r'\n[ \1, \2, \3 ],', pinnFileText)
+        # [x e-01 z]
+        pinnFileText = re.sub(
+            r'\n\s*(\-?[0-9]+\.?[0-9]*)\s(\-?[0-9]+\.?[0-9]*e-[0-9]*)\s(\-?[0-9]+\.?[0-9]*)\s*(?=\n)',
+            r'\n[ \1, \2, \3 ],', pinnFileText)
+        # [x y e-01]
+        pinnFileText = re.sub(
+            r'\n\s*(\-?[0-9]+\.?[0-9]*)\s(\-?[0-9]+\.?[0-9]*)\s(\-?[0-9]+\.?[0-9]*e-[0-9]*)\s*(?=\n)',
+            r'\n[ \1, \2, \3 ],', pinnFileText)
+        # f1 = open('debug08','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # Convert Points[] : { N,N } arrays to Points : [ N,N ] (match anything except '}')
+        pinnFileText = re.sub(
+            r'"Points\[\]" ?: ?{\n([^}]*)}', r'"Points" : [\n\1]', pinnFileText)
+        pinnFileText = re.sub(
+            r'"Vertices\[\]" ?: ?{\n([^}]*)}', r'"Vertices" : [\n\1]', pinnFileText)
+        pinnFileText = re.sub(
+            r'"Triangles\[\]" ?: ?{\n([^}]*)}', r'"Triangles" : [\n\1]', pinnFileText)
+
+        # pinnFileText = re.sub( r'"PhotonEnergyList" ?: ?{\n(^}*)}', r'"PhotonEnergyList" : [\n\1]', pinnFileText)
+        # pinnFileText = re.sub( r'"ElectronEnergyList" ?: ?{\n(^}*)}', r'"ElectronEnergyList" : [\n\1]', pinnFileText)
+        # pinnFileText = re.sub( r'"PhotonEnergyList" ?: ?{\n([^}]*)}', r'"PhotonEnergyList" : [{\n\1}]', pinnFileText)
+
+        # Convert Points[] : { N,N } arrays to Points : [ N,N ] (match anything except '}')
+        # pinnFileText = re.sub( r'"Points\[\]" ?: ?{\n([^}]*)}', r'"Points" : [\n\1]', pinnFileText)
+        # f1 = open('debug09','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # Remove " from start of lines in a numeric array
+        pinnFileText = re.sub(
+            r'\[\n"([0-9]*\.?[0-9]*,[0-9]*.?[0-9]*,)\n', r'[\n\1\n', pinnFileText)
+
+        # remove e-06
+
+        # pinnFileText = re.sub(r'e-\d*',r'e',pinnFileText)
+        # f1 = open('debug10','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # Convert = \XDR:0\; to = "XDR:0";
+        pinnFileText = re.sub(
+            r': \\XDR:([0-9]*)\\', r': "XDR-\1"', pinnFileText)
+
+        # For store objects change syntax slightly : e.g. Float { to : {
+        pinnFileText = re.sub(' : Float {', ' : {', pinnFileText)
+        pinnFileText = re.sub(' : SimpleString {', ' : {', pinnFileText)
+
+        # f1 = open('debug11','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # ----------------------------------------------------------------------------------- #
+        # Convert ObjectLists from ObjectList = { Object={A}, Object={B} } to ObjectList = [ A, B ]
+
+        # Find matching pairs of brackets
+        sectionStart, sectionEnd, sectionDepth = self.findSectionBrakes(
+            pinnFileText)
+
+        listStarts = []
+        for listP in re.finditer('List" : {', pinnFileText):
+            listStarts.append(listP.start())
+        listStarts = np.array(listStarts)
+
+        # Compile a list of pinnacle List arrays such as BeamList, etc.
+        for ll, listSt in enumerate(listStarts):
+            # print("List %d at line %d, char %d" % (ll, lineNumber(pinnFileText,listSt), listSt))
+
+            # Find the beginning and end of the list section
+            bracketNum = np.where(sectionStart > listSt)[0][0]
+            listEnd = sectionEnd[bracketNum]
+
+            # Get the name of the pinnacle list type (the part that comes before List)
+            # E.g. BeamList becomes Beam, TrialList becomes Trial
+            listMatch = re.search('(?<=\n")[\s\w]*?$', pinnFileText[:listSt])
+            # print(repr(pinnFileText[listSt-30:listSt]))
+            if listMatch:
+                listName = pinnFileText[listMatch.start():listSt]
+                matchStr = '"' + listName + '" : {'
+
+            # Cut out the list portion from the file text
+            extract = pinnFileText[listSt:listEnd]
+
+            # If there are no items in the list then skip it and leave it as it is.
+            if len(re.findall(matchStr, extract)) == 0 and len(re.findall('"#[0-9]*" : {', extract)) == 0:
+                continue
+
+            nCharsRemoved = len(matchStr) - 1
+            for mm, matchM in enumerate(re.finditer(matchStr, extract)):
+                matchPos = matchM.start() + listSt
+                if mm == 0:
+                    firstMatch = matchPos
+
+                listInds = np.where(listStarts > matchPos)[0]
+
+                sectionStart[np.where(sectionStart > matchPos)[
+                    0]] -= nCharsRemoved
+                sectionEnd[np.where(sectionEnd > matchPos)[0]] -= nCharsRemoved
+                listStarts[listInds] -= nCharsRemoved
+
+            extract = re.sub(matchStr, '{', extract)
+
+            # Set text to previous portion + extract + subsequent portion
+            pinnFileText = pinnFileText[:listSt] + 'List" : [' + \
+                           extract[9:-1] + "]," + pinnFileText[listEnd + 1:]
+
+        # f1 = open('debug12','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # ObjectLists that have elements named #0, #1 etc. must be changed
+        pinnFileText = re.sub('"#[0-9]*" : {', '{', pinnFileText)
+
+        # f1 = open('debug13','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        # Clean up a bit by removing any commas added where we shouldn't have commas
+        # Match } or ] following by , some whitespace and then } or ]
+        # Replace by the first bracket newline second bracket.
+        # pinnFileText = re.sub(r'([}\]]),\s*([[}\]])', r'\1\n\2', pinnFileText )
+        pinnFileText = re.sub(r'([}\]]),\s*([}\]])', r'\1\n\2', pinnFileText)
+
+        # f1 = open('debug14','w')
+        # f1.write(pinnFileText)
+        # f1.close()
+
+        return pinnFileText
 
     # ----------------------------------------- #
 
-    def doseAtCoord(self, doseData, doseHdr, xCoord, yCoord, zCoord):
+    def dotHeirarchyToPinnFormat(self, fileTxt):
         """
-        Linearly interpolate the dose at a set of coordinates
+        Convert dot object heirarchy to bracket heirarchy
+
+        E.g. Convert this syntax:
+            DoseGrid .VoxelSize .X = 0.4;
+            DoseGrid .VoxelSize .Y = 0.4;
+            DoseGrid .Dimension .X = 125;
+            DoseGrid .Dimension .Y = 112;
+
+        to this syntax, which is more consistent with the rest of pinnacle file format
+        DoseGrid ={
+          VoxelSize = {
+            X = 0.4;
+            Y = 0.4;
+          };
+        Dimension = {
+            X = 125;
+            Y = 112;
+          };
+        };
+
+        Assume that sub-objects in dot heirarchy are on subsequent lines.
         """
-        xCoord, yCoord, zCoord = self.coordToIndex(
-            doseHdr, xCoord, yCoord, zCoord)
+        prevEnd = 0
+        prevSection = ""
 
-        xP = np.floor(xCoord)
-        yP = np.floor(yCoord)
-        zP = np.floor(zCoord)
+        charDelta = 0
 
-        xF = xCoord - xP
-        yF = yCoord - yP
-        zF = zCoord - zP
+        nBrktsOpen = 0
+        nBrktsClose = 0
 
-        dose = self.doseAtIndex(doseData, zP, yP, xP) * (1.0 - zF) * (1.0 - yF) * (1.0 - xF) + \
-            self.doseAtIndex(doseData, zP, yP, xP + 1) * (1.0 - zF) * (1.0 - yF) * xF + \
-            self.doseAtIndex(doseData, zP, yP + 1, xP) * (1.0 - zF) * yF * (1.0 - xF) + \
-            self.doseAtIndex(doseData, zP, yP + 1, xP + 1) * (1.0 - zF) * yF * xF + \
-            self.doseAtIndex(doseData, zP + 1, yP, xP) * zF * (1.0 - yF) * (1.0 - xF) + \
-            self.doseAtIndex(doseData, zP + 1, yP, xP + 1) * zF * (1.0 - yF) * xF + \
-            self.doseAtIndex(doseData, zP + 1, yP + 1, xP) * zF * yF * (1.0 - xF) + \
-            self.doseAtIndex(doseData, zP + 1, yP + 1, xP + 1) * zF * yF * xF
+        # Regular expression explained :
+        # match Something.SomethingElse = SomethingElse;\n
+        # where Something can have upper or lowercase letters or numbers, spaces, tabs, hyphens or double quotes
+        #		SomethingElse can additionally have dots '.'
+        # must be preeceded by newline - i.e. rule out comments that start with // or rhs of equals
+        # Group match into three parts so the Something, SomethingElse and SomethingElse can all
+        #			be used in constructing the replacement string
 
-        return dose
+        for m1 in re.finditer(r'(?<=\n)(["A-Za-z0-9 \t_-]*)\.(["A-Za-z0-9 \t_\.-]*)=(["0-9A-Za-z \t_\.-]*;\n)',
+                              fileTxt):
+            grps = m1.groups()
+            if m1.lastindex == 3:
+                if m1.start() > prevEnd or prevSection != grps[0]:
+                    if prevEnd > 0:
+                        txtAdded = "\n};\n"
+                        fileTxt = fileTxt[:prevEnd + charDelta] + \
+                                  txtAdded + fileTxt[prevEnd + charDelta:]
+                        charDelta += len(txtAdded)
+                        prevEnd = m1.end()
+                        nBrktsClose += 1
 
-    # ----------------------------------------- #
+                    txtAdded = grps[0] + "={\n  " + grps[1] + "=" + grps[2]
 
-    def doseAtIndex(self, dose, indZ, indY, indX):
-        """
-        Return dose at indices.
-        Beyond end of dose array return zero
-        """
-        try:
-            dd = dose[indZ, indY, indX]
-            if indZ > 0 and indY > 0 and indX > 0:
-                return dd
+                    # ch1 = m1.start()+charDelta
+                    # ch2 = m1.end()+charDelta
+                    # print( str(m1.start()) + "-" + str(m1.end()) + ":" + str(prevEnd) + "***" + \
+                    #		repr(fileTxt[ch1-50:ch1]) + "***" + repr(fileTxt[ch1:ch2]) + \
+                    #		"***" + repr(txtAdded) + "***" + repr(fileTxt[ch2:ch2+50]) )
+
+                    fileTxt = fileTxt[:m1.start() + charDelta] + \
+                              txtAdded + fileTxt[m1.end() + charDelta:]
+                    charDelta += len(txtAdded) + m1.start() - m1.end()
+                    prevEnd = m1.end()
+                    prevSection = grps[0]
+                    nBrktsOpen += 1
+
+                else:
+                    txtAdded = "  " + grps[1] + "=" + grps[2]
+
+                    # ch1 = m1.start()+charDelta
+                    # ch2 = m1.end()+charDelta
+                    # print( str(m1.start()) + "-" + str(m1.end()) + ":" + str(prevEnd) + "***" + \
+                    #		repr(fileTxt[ch1-50:ch1]) + "***" + repr(fileTxt[ch1:ch2]) + \
+                    #		"***" + repr(txtAdded) + "***" + repr(fileTxt[ch2:ch2+50]) )
+
+                    fileTxt = fileTxt[:m1.start() + charDelta] + \
+                              txtAdded + fileTxt[m1.end() + charDelta:]
+                    charDelta += len(txtAdded) + m1.start() - m1.end()
+                    prevEnd = m1.end()
             else:
-                return 0.0
-        except IndexError:
-            return 0.0
+                print("We should have 3 matches here but we don't ")
+
+        if nBrktsOpen > 0:
+            txtAdded = "};\n"
+            fileTxt = fileTxt[:prevEnd + charDelta] + \
+                      txtAdded + fileTxt[prevEnd + charDelta:]
+            # charDelta += len(txtAdded)
+            # nBrktsClose += 1
+
+            fileTxt = self.dotHeirarchyToPinnFormat(fileTxt)
+
+        # print("Sections opened = %d, closed = %d" % (nBrktsOpen,nBrktsClose))
+
+        return fileTxt
+
+    # ----------------------------------------- #
+
+    def findSectionBrakes(self, fileTxt):
+        """
+        Find matching pairs of curley brackets {} and return their position in the string.
+        """
+        opBrkt = []
+        for result in re.finditer("{", fileTxt):
+            opBrkt.append(result)
+
+        clBrkt = []
+        for result in re.finditer("}", fileTxt):
+            clBrkt.append(result)
+        # depthBrkt = []
+        # if len(opBrkt) == 0 or len(clBrkt) == 0:
+        #     print("maybe a empty file\n")
+        #     return np.array([]),np.array([]),np.array([])
+        nBrackets = len(opBrkt)
+        if len(clBrkt) != nBrackets:
+            raise Exception("Brackets {} are not balanced in file %d opening and %d closing." % (
+                len(opBrkt), len(clBrkt)))
+
+        # print("Brackets {} %d opening and %d closing." % (len(opBrkt), len(clBrkt)))
+
+        sectionStart = []
+        sectionEnd = []
+        sectionDepth = []
+        sectionInd = 0
+        while len(opBrkt) > 0:
+            self.findMatchingBrackets(opBrkt, clBrkt, sectionStart,
+                                      sectionEnd, sectionDepth, 0)
+
+        return np.array(sectionStart), np.array(sectionEnd), np.array(sectionDepth)
+
+    # ----------------------------------------- #
+
+    def findMatchingBrackets(self, opBrkt, clBrkt, sectionStart, sectionEnd, sectionDepth, curDepth):
+        """
+        Recursive function to find sections delimited by matching pairs of braces.
+        """
+        curOpBrkt = opBrkt.pop(0)
+        sectionInd = len(sectionStart)
+
+        sectionStart.append(curOpBrkt.start())
+        sectionEnd.append(-1)
+        sectionDepth.append(-1)
+
+        while len(opBrkt) > 0 and clBrkt[0].start() > opBrkt[0].start():
+            self.findMatchingBrackets(opBrkt, clBrkt, sectionStart,
+                                      sectionEnd, sectionDepth, curDepth + 1)
+
+        curClBrkt = clBrkt.pop(0)
+        sectionEnd[sectionInd] = curClBrkt.end()
+        sectionDepth[sectionInd] = curDepth
+
+    # ----------------------------------------- #
+
+    def lineNumber(self, text, charNum):
+        """
+        Convert a given character index in a string to a line number by counting the preceeding newlines
+        """
+        ln = 0
+        for mm in re.finditer("\n", text[:charNum]):
+            ln += 1
+        return ln
+
+    # ----------------------------------------- #
+
+    def test(self):
+        """
+        Run tests.
+        """
+
+        # Test dotHeirarchyToPinnFormat()
+        testStr = "PatientRepresentation ={\n" + \
+                  "  PatientVolumeName = \"plan\";\n" + \
+                  "  CtToDensityName = \"RMH GE 120kV\";\n" + \
+                  "  CtToDensityVersion = \"2012-08-14 10:56:29\";\n" + \
+                  "  DMTableName = \"Standard Patient\";\n" + \
+                  "  DMTableVersion = \"2003-07-17 12:00:00\";\n" + \
+                  "  TopZPadding = 0;\n" + \
+                  "  BottomZPadding = 0;\n" + \
+                  "  HighResZSpacingForVariable = 0.2;\n" + \
+                  "  OutsidePatientIsCtNumber = 0;\n" + \
+                  "  OutsidePatientAirThreshold = 0.6;\n" + \
+                  "  CtToDensityTableAccepted = 1;\n" + \
+                  "  CtToDensityTableExtended = 0;\n" + \
+                  "};\n" + \
+                  "DoseGrid .VoxelSize .X = 0.4;\n" + \
+                  "DoseGrid .VoxelSize .Y = 0.4;\n" + \
+                  "DoseGrid .VoxelSize .Z = 0.4;\n" + \
+                  "DoseGrid .Dimension .X = 125;\n" + \
+                  "DoseGrid .Dimension .Y = 112;\n" + \
+                  "DoseGrid .Dimension .Z = 90;\n" + \
+                  "DoseGrid .Origin .X = -24.5082;\n" + \
+                  "DoseGrid .Origin .Y = -19.3726;\n" + \
+                  "DoseGrid .Origin .Z = -18.886;\n" + \
+                  "DoseGrid .DisplayAsSecondary = 0;\n" + \
+                  "DoseGrid .Display2d = 1;\n" + \
+                  "PatientRepresentation ={\n" + \
+                  "  PatientVolumeName = \"plan\";\n" + \
+                  "  CtToDensityName = \"RMH GE 120kV\";\n" + \
+                  "  CtToDensityVersion = \"2012-08-14 10:56:29\";\n" + \
+                  "};\n" + \
+                  "RowLabelList ={\n" + \
+                  "  #0 ={\n" + \
+                  "    String = \"  1. Y = -19.50 cm\";\n" + \
+                  "  };\n" + \
+                  "  #1 ={\n" + \
+                  "    String = \"  2. Y = -18.50 cm\";\n" + \
+                  "  };\n" + \
+                  "};\n" + \
+                  "\n"
+
+        # outStr = dotHeirarchyToPinnFormat(testStr)
+        # print(outStr)
+
+        # testFile = '/home/dualta/code/python/Patient_27814/Plan_0/plan.Trial'
+        # testFile = '/home/dualta/code/python/Patient_27814/Plan_0/plan.roi'
+        # writeJson(testFile, testFile+'.json')
+        import os
+
+        testPath = '/home/dualta/code/python/Patient_27814/Plan_0/'
+        for testFile in os.listdir(testPath):
+            if 'json' in testFile or 'binary' in testFile:
+                continue
+
+            msg = "Trying " + testFile + " : "
+            try:
+                self.writeJson(testPath + testFile,
+                               testPath + testFile + '.json')
+                print(msg + "ok")
+            except:
+                print(msg + "PROBLEM")
 
     # ----------------------------------------- #
 
 
-class buildPatientPlan(object):
-    pass
+if __name__ == "__main__":
+    """
+    Main function
+    """
+    # Set up input argument parser
+    parser = OptionParser("\nProcess a pinnacle object." +
+                          "\n\n%s [options] pinnacle_file" % sys.argv[0])
 
+    parser.add_option("-t", "--test", dest="runTest",
+                      action="store_true", default=False,
+                      help="Run test by converting a sample plan.Trial file to JSON file.")
 
-class DoseInvalidException(Exception):
-    pass
+    # parser.add_option("-n","--name",dest="annonName",
+    #						type="string", action="store", default="NO^NAME", \
+    #						help="Annonomize images by changing name to annonName.")
 
+    (options, args) = parser.parse_args()
 
-if __name__ == '__main__':
-    patientPlanDir = '/home/peter/PinnWork/Patient_35895/'
-    planObject = parseWholePatient(patientPlanDir)
-    planObject.getPatientDict()
+    if options.runTest:
+        test()
+    elif len(args) < 1:
+        print("No pinnacle file found !!")
+        parser.print_help()
+    else:
+        filename = args[0]
+        pinnObjList = read(filename)
+
+        for scriptObj in pinnObjList:
+            print(scriptObj)
