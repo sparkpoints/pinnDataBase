@@ -3,25 +3,23 @@
 ####################################################################################################################################################
 from __future__ import print_function
 
-import time  # used for getting current date and time for file
+# import pydicom.uid
+import os
 import re  # used for isolated values from strings
-import sys
+import struct
+import time  # used for getting current date and time for file
+from random import randint
+
+import numpy as np
 import os.path
 import pydicom as dicom
-import numpy as np
-from pydicom.dataset import Dataset, FileDataset
-from pydicom.sequence import Sequence
-from pydicom.filebase import DicomFile
-
+import pydicom.uid
 from dicompylercore import dicomparser, dvhcalc
 from dicompylercore.dvh import DVH
-import pydicom.uid
+from pydicom.dataset import Dataset, FileDataset
+from pydicom.filebase import DicomFile
+from pydicom.sequence import Sequence
 
-#import pydicom.uid
-import os
-import struct
-from random import randint
-from PIL import Image
 from pinn2Json import pinn2Json
 
 ####################################################################################################################################################
@@ -151,7 +149,7 @@ no_setup_file = False
 no_beams = False
 gImplementationClassUID = '1.2.826.0.1.3680043.8.498.75006884747854523615841001'
 Manufacturer = "Pinnacle Philips"
-PDD6MV = 0.6683
+PDD6MV = 0.665  # for varian 600CD in TJ
 PDD10MV = 0.6683  # Also temporary, need to get actual PDD value
 PDD15MV = 0.7658
 # THis is temporary, this value is not correct just using as place holder for now
@@ -296,7 +294,8 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
         0].RTReferencedSeriesSequence[0].ContourImageSequence = Sequence()
     for i, value in enumerate(imageuid, 1):
         exec("ContourImage%d = Dataset()" % i)
-        exec("structds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence.append(ContourImage%d)" % i)
+        exec(
+            "structds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence.append(ContourImage%d)" % i)
         structds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[
             0].ContourImageSequence[i - 1].ReferencedSOPClassUID = '1.2.840.10008.5.1.4.1.1.1'
         structds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[
@@ -358,17 +357,18 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
     #print("\n \n Current software versions found: \n")
     # for ver in softwarev:
         # print(ver)
-    sturctures = RS_test.GetStructures()
+    # sturctures = RS_test.GetStructures()
 
     # print(sturctures)
-    dvh_inter = dvhcalc.get_dvh(RS_test.ds, RD_test.ds, 4,interpolation_resolution=(4/32),interpolation_segments_between_planes=2,use_structure_extents=True)
+    #dvh_inter = dvhcalc.get_dvh(RS_test.ds, RD_test.ds, 4,interpolation_resolution=(4/32),interpolation_segments_between_planes=2,use_structure_extents=True)
     # dvh = dvhcalc.get_dvh(RS_test.ds, RD_test.ds, 4)
     # print(dvh.volume, dvh.name)
     # dvh.describe()
     # print(dvh.bins)
     # dvh.compare(dvh_inter)
 
-    return dvh_inter
+    # return dvh_inter
+    return RS_test, RD_test
 ####################################################################################################################################################
 ####################################################################################################################################################
 
@@ -2529,12 +2529,14 @@ def creatertdose(plannumber, planfolder, beamnum, binarynum, beamdosevalue, numf
         # temp_beamds.save_as(Outputfolder+"%s/%s"%(patientfolder,RDfilename))
     return main_pix_array, ds
 
-def getTPSDVH(basedir,mrn,roiName):
+
+def getTPSDVH(basedir, mrn, roiName):
     pj = pinn2Json()
     files = os.listdir(basedir)
     for file in files:
-        if mrn in file and roiName in file:
-            dvh_export = pj.read(os.path.join(basedir,file))
+        filedata = file.replace('.txt', '').split('-')
+        if mrn == filedata[0] and roiName == filedata[-1]:
+            dvh_export = pj.read(os.path.join(basedir, file))
             # print(dvh_export.Points)
             filename = os.path.basename(file)
             filename = filename.replace('.txt', '').split('-')
@@ -2547,6 +2549,115 @@ def getTPSDVH(basedir,mrn,roiName):
             dvh_data.name = filename[3]
             dvh_data.notes = filename[0] + filename[1] + filename[2]
             return dvh_data.cumulative
+
+
+class dvhdata(DVH):
+    """class that modify classs DVH from dicompylercore"""
+
+    def __init__(self, dvh):
+        self.counts = dvh.counts
+        self.bins = dvh.bins
+        self.dvh_type = dvh.dvh_type
+        self.dose_units = dvh.dose_units
+        self.volume_units = dvh.volume_units
+        self.rx_dose = dvh.rx_dose
+        self.name = dvh.name
+        self.color = dvh.color
+        self.notes = dvh.notes
+        # DVH.__init__(self,counts,bins,dvh_type,dose_units,volume_units,rx_dose,name,color,notes)
+
+    def compare(self, dvh):
+        """Compare the DVH properties with another DVH.
+
+        Parameters
+        ----------
+        dvh : DVH
+            DVH instance to compare against
+
+        Raises
+        ------
+        AttributeError
+            If DVHs do not have equivalent dose & volume units
+        """
+        if not (self.dose_units == dvh.dose_units) or \
+                not (self.volume_units == dvh.volume_units):
+            raise AttributeError("DVH units are not equivalent")
+
+        def fmtcmp(attr, units, ref=self, comp=dvh):
+            """Generate arguments for string formatting.
+
+            Parameters
+            ----------
+            attr : string
+                Attribute used for comparison
+            units : string
+                Units used for the value
+
+            Returns
+            -------
+            tuple
+                tuple used in a string formatter
+            """
+            if attr in ['volume', 'max', 'min', 'mean']:
+                val = ref.__getattribute__(attr)
+                cmpval = comp.__getattribute__(attr)
+            else:
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
+            return attr.capitalize() + ":", val, units, cmpval, units, \
+                   0 if not val else ((cmpval - val) / val) * 100, cmpval - val
+
+        print("{:11} {:>14} {:>17} {:>17} {:>14}".format(
+            'Structure:', self.name, dvh.name, 'Rel Diff', 'Abs diff'))
+        print("-----")
+        dose = "rel dose" if self.dose_units == '%' else \
+            "abs dose: {}".format(self.dose_units)
+        vol = "rel volume" if self.volume_units == '%' else \
+            "abs volume: {}".format(self.volume_units)
+        print("DVH Type:  {}, {}, {}".format(self.dvh_type, dose, vol))
+        fmtstr = "{:11} {:12.2f} {:3}{:14.2f} {:3}{:+14.2f} % {:+14.2f}"
+        print(fmtstr.format(*fmtcmp('volume', self.volume_units)))
+        print(fmtstr.format(*fmtcmp('max', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('min', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('mean', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D100', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D98', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D95', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D90', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D50', self.dose_units)))
+        # Only show volume statistics if a Rx Dose has been defined
+        # i.e. dose is in relative units
+        if self.dose_units == '%':
+            print(fmtstr.format(
+                *fmtcmp('V100', self.dose_units,
+                        self.relative_dose(), dvh.relative_dose())))
+            print(fmtstr.format(
+                *fmtcmp('V95', self.dose_units,
+                        self.relative_dose(), dvh.relative_dose())))
+            print(fmtstr.format(
+                *fmtcmp('V5', self.dose_units,
+                        self.relative_dose(), dvh.relative_dose())))
+        print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
+        # self.plot()
+        # dvh.plot()
+
+    def plot(self):
+        """Plot the DVH using Matplotlib if present."""
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            print('Matplotlib could not be loaded. Install and try again.')
+        else:
+            plt.plot(self.bincenters, self.counts, label=self.name,
+                     color=None if not isinstance(self.color, np.ndarray) else
+                     (self.color / 255))
+            plt.axis([0, 70, 0, 110])  # for relative volume
+            plt.xlabel('Dose [%s]' % self.dose_units)
+            plt.ylabel('Volume [%s]' % self.volume_units)
+            if self.name:
+                plt.legend(loc='best')
+        return self
+
 ####################################################################################################################################################
 ####################################################################################################################################################
 if __name__ == "__main__":
@@ -2557,14 +2668,43 @@ if __name__ == "__main__":
     tpsDVHsDir = '/home/peter/PinnWork/dvhs'
 
     pinnObject = pinn2Json()
-    for patientDir in os.listdir(inputfolder):
-        if os.path.isfile(os.path.join(inputfolder,patientDir,'Patient')):
-            patientInfo = pinnObject.read(os.path.join(inputfolder,patientDir,'Patient'))
+    patientDir = os.listdir(inputfolder)
+    for patient in patientDir:
+        if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
+            patientInfo = pinnObject.read(
+                os.path.join(inputfolder, patient, 'Patient'))
+            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+            structs = Rs.GetStructures()
+            for (key, Roi) in structs.items():
+                if Roi['type'] == 'MARKER':
+                    continue
+                print('============================')
+                print(key, Roi['name'])
+                dvh_tps = getTPSDVH(
+                    tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(
+                        4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+                if dvh_tps and dvh_cal:
+                    print('abs')
+                    # dvh_cal.compare(dvh_tps)
+                    dvh_cal = dvh_cal.relative_volume
+                    dvh_tps = dvh_tps.relative_volume
+                    print('relative')
+                    dvhdata_cal = dvhdata(dvh_cal)
+                    dvhdata_tps = dvhdata(dvh_tps)
+                    dvhdata_cal.compare(dvhdata_tps)
+                    dvhdata_cal.plot()
+                    dvhdata_tps.plot()
+                    #
+                    # dvh_tps = getRelativeVolumeDVH(dvh_tps)
+                    # dvh_tps.plot()
+                dvh_tps = None
+                dvh_cal = None
 
-    dvh_tps = getTPSDVH(tpsDVHsDir, '358182', 'PGTV')
-
-    dvh_cal = readpatient("Patient_15322", inputfolder, outputfolder)
-    dvh_cal.compare(dvh_tps)
+            Rs = None
+            Rd = None
+    #
+    # dvh_cal.compare(dvh_tps)
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
     #     readpatient(dir,inputfolder,outputfolder)
