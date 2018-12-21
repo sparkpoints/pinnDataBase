@@ -3,25 +3,23 @@
 ####################################################################################################################################################
 from __future__ import print_function
 
-import time  # used for getting current date and time for file
+# import pydicom.uid
+import os
 import re  # used for isolated values from strings
-import sys
+import struct
+import time  # used for getting current date and time for file
+from random import randint
+
+import numpy as np
 import os.path
 import pydicom as dicom
-import numpy as np
-from pydicom.dataset import Dataset, FileDataset
-from pydicom.sequence import Sequence
-from pydicom.filebase import DicomFile
-
-from dicompylercore import dicomparser, dvhcalc
-from dicompylercore.dvh import DVH
 import pydicom.uid
+from dicompylercore import dicomparser
+from dicompylercore.dvh import DVH
+from pydicom.dataset import Dataset, FileDataset
+from pydicom.filebase import DicomFile
+from pydicom.sequence import Sequence
 
-#import pydicom.uid
-import os
-import struct
-from random import randint
-from PIL import Image
 from pinn2Json import pinn2Json
 
 ####################################################################################################################################################
@@ -358,17 +356,18 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
     #print("\n \n Current software versions found: \n")
     # for ver in softwarev:
         # print(ver)
-    sturctures = RS_test.GetStructures()
+    # sturctures = RS_test.GetStructures()
 
     # print(sturctures)
-    dvh_inter = dvhcalc.get_dvh(RS_test.ds, RD_test.ds, 4,interpolation_resolution=(4/32),interpolation_segments_between_planes=2,use_structure_extents=True)
+    #dvh_inter = dvhcalc.get_dvh(RS_test.ds, RD_test.ds, 4,interpolation_resolution=(4/32),interpolation_segments_between_planes=2,use_structure_extents=True)
     # dvh = dvhcalc.get_dvh(RS_test.ds, RD_test.ds, 4)
     # print(dvh.volume, dvh.name)
     # dvh.describe()
     # print(dvh.bins)
     # dvh.compare(dvh_inter)
 
-    return dvh_inter
+    # return dvh_inter
+    return RS_test.ds, RD_test.ds
 ####################################################################################################################################################
 ####################################################################################################################################################
 
@@ -2561,9 +2560,10 @@ if __name__ == "__main__":
         if os.path.isfile(os.path.join(inputfolder,patientDir,'Patient')):
             patientInfo = pinnObject.read(os.path.join(inputfolder,patientDir,'Patient'))
 
+            Rs, Rd = readpatient(patientDir, inputfolder, outputfolder)
+
     dvh_tps = getTPSDVH(tpsDVHsDir, '358182', 'PGTV')
 
-    dvh_cal = readpatient("Patient_15322", inputfolder, outputfolder)
     dvh_cal.compare(dvh_tps)
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:

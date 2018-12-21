@@ -43,7 +43,7 @@ class pinn2Json(object):
             f = open(pinnFile + '.json', 'w')
             f.write(fileTxt)
             f.close()
-            return Box(json.loads(fileTxt))
+            return Box(json.loads(fileTxt, strict=False))
             # return DotMap(json.loads(fileTxt))
         else:
             print("emptyfile\n")
