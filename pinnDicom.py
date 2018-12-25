@@ -2566,6 +2566,10 @@ class dvhdata(DVH):
         self.notes = dvh.notes
         # DVH.__init__(self,counts,bins,dvh_type,dose_units,volume_units,rx_dose,name,color,notes)
 
+    # def getDifferences(self,dvh,result):
+    #     """compare dvh with another dvh, compute the difffereces"""
+
+
     def compare(self, dvh):
         """Compare the DVH properties with another DVH.
 
@@ -2695,6 +2699,9 @@ if __name__ == "__main__":
                     dvhdata_cal.compare(dvhdata_tps)
                     dvhdata_cal.plot()
                     dvhdata_tps.plot()
+                    # with open('dvhdatalist.pkl','ab+') as f:
+                    #     dill.dump(dvhdata_cal,f)
+                    #     dill.dump(dvhdata_tps,f)
                     #
                     # dvh_tps = getRelativeVolumeDVH(dvh_tps)
                     # dvh_tps.plot()
