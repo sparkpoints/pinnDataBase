@@ -1425,9 +1425,9 @@ def readroi(ds, planfolder):
                                              1].ObservationNumber = ROI_COUNT
                 ds.RTROIObservationsSequence[ROI_COUNT -
                                              1].ReferencedROINumber = ROI_COUNT
-                if "PTV" in ROIName:
+                if "GTV" in ROIName or 'CTV' in ROIName or 'PTV' in ROIName:
                     ds.RTROIObservationsSequence[ROI_COUNT -
-                                                 1].RTROIInterpretedType = 'PTV'
+                                                 1].RTROIInterpretedType = 'TARGET'
                 else:
                     ds.RTROIObservationsSequence[ROI_COUNT -
                                                  1].RTROIInterpretedType = 'ORGAN'
@@ -2547,7 +2547,7 @@ def getTPSDVH(basedir, mrn, roiName):
             dvh_data = DVH(counts, bins, 'differential', 'Gy', 'cm3')
             dvh_data.color = Colors[0]
             dvh_data.name = filename[3]
-            dvh_data.notes = filename[0] + filename[1] + filename[2]
+            dvh_data.notes = filename[0]
             return dvh_data.cumulative
 
 
@@ -2566,9 +2566,107 @@ class dvhdata(DVH):
         self.notes = dvh.notes
         # DVH.__init__(self,counts,bins,dvh_type,dose_units,volume_units,rx_dose,name,color,notes)
 
-    # def getDifferences(self,dvh,result):
-    #     """compare dvh with another dvh, compute the difffereces"""
+    def getDifferences(self, dvh, result):
+        """compare dvh with another dvh, compute the difffereces"""
+        fileObj = None
+        if os.path.isfile(result):
+            fileObj = open(result, 'a')
 
+        if not (self.dose_units == dvh.dose_units) or \
+                not (self.volume_units == dvh.volume_units):
+            raise AttributeError("DVH units are not equivalent")
+
+        def fmtcmp(attr, units, ref=self, comp=dvh):
+            """Generate arguments for string formatting.
+
+            Parameters
+            ----------
+            attr : string
+                Attribute used for comparison
+            units : string
+                Units used for the value
+
+            Returns
+            -------
+            tuple
+                tuple used in a string formatter
+            """
+            if attr in ['volume', 'max', 'min', 'mean']:
+                val = ref.__getattribute__(attr)
+                cmpval = comp.__getattribute__(attr)
+            else:
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
+            return attr.capitalize() + ":", val, units, cmpval, units, \
+                   0 if not val else ((cmpval - val) / val) * 100, cmpval - val
+
+        def savefmtcmp(attr, units, ref=self, comp=dvh):
+            """Generate arguments for string formatting.
+            """
+            if attr in ['volume', 'max', 'min', 'mean']:
+                val = ref.__getattribute__(attr)
+                cmpval = comp.__getattribute__(attr)
+            else:
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
+            strValue = str(comp.__getattribute__('notes') + ',' + comp.__getattribute__(
+                'name') + ',' + attr.capitalize() + "," + str(val) + "," + units +
+                           "," + str(cmpval) + "," + units + "," + str(
+                0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + "," + units + '\n')
+            return strValue
+
+        print("{:11} {:>14} {:>17} {:>17} {:>14}".format(
+            'Structure:', self.name, dvh.name, 'Rel Diff', 'Abs diff'))
+        print("-----")
+        dose = "rel dose" if self.dose_units == '%' else \
+            "abs dose: {}".format(self.dose_units)
+        vol = "rel volume" if self.volume_units == '%' else \
+            "abs volume: {}".format(self.volume_units)
+        print("DVH Type:  {}, {}, {}".format(self.dvh_type, dose, vol))
+        fmtstr = "{:11} {:12.2f} {:3}{:14.2f} {:3}{:+14.2f} % {:+14.2f}"
+        print(fmtstr.format(*fmtcmp('volume', self.volume_units)))
+        print(fmtstr.format(*fmtcmp('max', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('min', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('mean', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D100', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D98', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D95', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D90', self.dose_units)))
+        print(fmtstr.format(*fmtcmp('D50', self.dose_units)))
+        # Only show volume statistics if a Rx Dose has been defined
+        # i.e. dose is in relative units
+        if self.dose_units == '%':
+            print(fmtstr.format(
+                *fmtcmp('V100', self.dose_units,
+                        self.relative_dose(), dvh.relative_dose())))
+
+            print(fmtstr.format(
+                *fmtcmp('V95', self.dose_units,
+                        self.relative_dose(), dvh.relative_dose())))
+
+            print(fmtstr.format(
+                *fmtcmp('V5', self.dose_units,
+                        self.relative_dose(), dvh.relative_dose())))
+
+            fileObj.write((savefmtcmp('V100', self.dose_units,
+                                      self.relative_dose(), dvh.relative_dose())))
+            fileObj.write((savefmtcmp('V95', self.dose_units,
+                                      self.relative_dose(), dvh.relative_dose())))
+            fileObj.write(
+                (savefmtcmp('V5', self.dose_units, self.relative_dose(), dvh.relative_dose())))
+        print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
+
+        fileObj.write(savefmtcmp('volume', self.dose_units))
+        fileObj.write(savefmtcmp('max', self.dose_units))
+        fileObj.write(savefmtcmp('min', self.dose_units))
+        fileObj.write(savefmtcmp('mean', self.dose_units))
+        fileObj.write(savefmtcmp('D100', self.dose_units))
+        fileObj.write(savefmtcmp('D98', self.dose_units))
+        fileObj.write(savefmtcmp('D95', self.dose_units))
+        fileObj.write(savefmtcmp('D90', self.dose_units))
+        fileObj.write(savefmtcmp('D50', self.dose_units))
+        fileObj.write(savefmtcmp('D2cc', self.dose_units))
+        fileObj.close()
 
     def compare(self, dvh):
         """Compare the DVH properties with another DVH.
@@ -2662,6 +2760,7 @@ class dvhdata(DVH):
                 plt.legend(loc='best')
         return self
 
+
 ####################################################################################################################################################
 ####################################################################################################################################################
 if __name__ == "__main__":
@@ -2670,6 +2769,7 @@ if __name__ == "__main__":
     # inputfolder = '/media/peter/7A565C71565C305D/Yang_Backup/export/'
     outputfolder = '/home/peter/PinnWork/dicom_pool/'
     tpsDVHsDir = '/home/peter/PinnWork/dvhs'
+    resultData = '/home/peter/PinnWork/dvhdata.csv'
 
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
@@ -2684,29 +2784,30 @@ if __name__ == "__main__":
                     continue
                 print('============================')
                 print(key, Roi['name'])
-                dvh_tps = getTPSDVH(
-                    tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
-                dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(
+                if Roi['type'] == 'TARGET':
+                    dvh_tps = getTPSDVH(
+                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                    dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(
                         4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
-                if dvh_tps and dvh_cal:
-                    print('abs')
-                    # dvh_cal.compare(dvh_tps)
-                    dvh_cal = dvh_cal.relative_volume
-                    dvh_tps = dvh_tps.relative_volume
-                    print('relative')
-                    dvhdata_cal = dvhdata(dvh_cal)
-                    dvhdata_tps = dvhdata(dvh_tps)
-                    dvhdata_cal.compare(dvhdata_tps)
-                    dvhdata_cal.plot()
-                    dvhdata_tps.plot()
-                    # with open('dvhdatalist.pkl','ab+') as f:
-                    #     dill.dump(dvhdata_cal,f)
-                    #     dill.dump(dvhdata_tps,f)
-                    #
-                    # dvh_tps = getRelativeVolumeDVH(dvh_tps)
-                    # dvh_tps.plot()
-                dvh_tps = None
-                dvh_cal = None
+                    if dvh_tps and dvh_cal:
+                        print('abs')
+                        # dvh_cal.compare(dvh_tps)
+                        dvh_cal = dvh_cal.relative_volume
+                        dvh_tps = dvh_tps.relative_volume
+                        print('relative')
+                        dvhdata_cal = dvhdata(dvh_cal)
+                        dvhdata_tps = dvhdata(dvh_tps)
+                        dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+                        dvhdata_cal.plot()
+                        dvhdata_tps.plot()
+                        # with open('dvhdatalist.pkl','ab+') as f:
+                        #     dill.dump(dvhdata_cal,f)
+                        #     dill.dump(dvhdata_tps,f)
+                        #
+                        # dvh_tps = getRelativeVolumeDVH(dvh_tps)
+                        # dvh_tps.plot()
+                    dvh_tps = None
+                    dvh_cal = None
 
             Rs = None
             Rd = None
