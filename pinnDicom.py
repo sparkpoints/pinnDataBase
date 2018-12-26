@@ -5,13 +5,13 @@ from __future__ import print_function
 
 # import pydicom.uid
 import os
+import os.path
 import re  # used for isolated values from strings
 import struct
 import time  # used for getting current date and time for file
 from random import randint
 
 import numpy as np
-import os.path
 import pydicom as dicom
 import pydicom.uid
 from dicompylercore import dicomparser, dvhcalc
@@ -2549,6 +2549,8 @@ def getTPSDVH(basedir, mrn, roiName):
             dvh_data.name = filename[3]
             dvh_data.notes = filename[0]
             return dvh_data.cumulative
+        # else:
+        #     return None
 
 
 class dvhdata(DVH):
@@ -2780,26 +2782,56 @@ if __name__ == "__main__":
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
             for (key, Roi) in structs.items():
-                if Roi['type'] == 'MARKER':
-                    continue
                 print('============================')
                 print(key, Roi['name'])
-                if Roi['type'] == 'TARGET':
+                if Roi['type'] == 'MARKER':
+                    continue
+                elif Roi['type'] == 'TARGET':
                     dvh_tps = getTPSDVH(
                         tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
-                    dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(
-                        4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
                     if dvh_tps and dvh_cal:
-                        print('abs')
+                        # print('abs')
+                        #
                         # dvh_cal.compare(dvh_tps)
                         dvh_cal = dvh_cal.relative_volume
                         dvh_tps = dvh_tps.relative_volume
-                        print('relative')
+                        # print('relative')
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-                        dvhdata_cal.plot()
-                        dvhdata_tps.plot()
+                        # dvhdata_cal.plot()
+                        # dvhdata_tps.plot()
+                        # with open('dvhdatalist.pkl','ab+') as f:
+                        #     dill.dump(dvhdata_cal,f)
+                        #     dill.dump(dvhdata_tps,f)
+                        #
+                        # dvh_tps = getRelativeVolumeDVH(dvh_tps)
+                        # dvh_tps.plot()
+                    dvh_tps = None
+                    dvh_cal = None
+                elif Roi['type'] == 'ORGAN':
+                    dvh_tps = getTPSDVH(
+                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        #4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps and dvh_cal:
+                        if dvh_cal.volume == 0:
+                            dvh_tps = None
+                            dvh_cal = None
+                            continue
+
+                        dvh_cal = dvh_cal.relative_volume
+                        dvh_tps = dvh_tps.relative_volume
+                        # print('relative')
+                        dvhdata_cal = dvhdata(dvh_cal)
+                        dvhdata_tps = dvhdata(dvh_tps)
+                        dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+                        # dvhdata_cal.plot()
+                        # dvhdata_tps.plot()
                         # with open('dvhdatalist.pkl','ab+') as f:
                         #     dill.dump(dvhdata_cal,f)
                         #     dill.dump(dvhdata_tps,f)
