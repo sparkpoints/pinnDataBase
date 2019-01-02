@@ -3,12 +3,14 @@
 ####################################################################################################################################################
 from __future__ import print_function
 
+import operator
 # import pydicom.uid
 import os
 import os.path
 import re  # used for isolated values from strings
 import struct
 import time  # used for getting current date and time for file
+from functools import reduce
 from random import randint
 
 import numpy as np
@@ -2762,6 +2764,14 @@ class dvhdata(DVH):
                 plt.legend(loc='best')
         return self
 
+    def cal_nrmsd(self, dvh):
+        h1 = self.bins
+        h2 = dvh.bins
+
+        rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+        print(rms)
+
+
 
 ####################################################################################################################################################
 ####################################################################################################################################################
@@ -2777,8 +2787,10 @@ if __name__ == "__main__":
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
+
             patientInfo = pinnObject.read(
                 os.path.join(inputfolder, patient, 'Patient'))
+            print("%s,%s\n", patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
             for (key, Roi) in structs.items():
@@ -2796,11 +2808,16 @@ if __name__ == "__main__":
                         # print('abs')
                         #
                         # dvh_cal.compare(dvh_tps)
+                        h1 = dvh_cal.bins
+                        h2 = dvh_tps.bins
+                        rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+                        print("binsdiff:%f", rms)
                         dvh_cal = dvh_cal.relative_volume
                         dvh_tps = dvh_tps.relative_volume
                         # print('relative')
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
+                        # dvhdata_cal.cal_nrmsd(dvhdata_tps)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
                         # dvhdata_cal.plot()
                         # dvhdata_tps.plot()
@@ -2829,6 +2846,7 @@ if __name__ == "__main__":
                         # print('relative')
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
+                        dvhdata_cal.cal_nrmsd(dvhdata_tps)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
                         # dvhdata_cal.plot()
                         # dvhdata_tps.plot()
