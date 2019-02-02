@@ -2572,9 +2572,7 @@ class dvhdata(DVH):
 
     def getDifferences(self, dvh, result):
         """compare dvh with another dvh, compute the difffereces"""
-        fileObj = None
-        if os.path.isfile(result):
-            fileObj = open(result, 'a')
+        fileObj = open(result, 'a')
 
         if not (self.dose_units == dvh.dose_units) or \
                 not (self.volume_units == dvh.volume_units):
@@ -2659,6 +2657,9 @@ class dvhdata(DVH):
             fileObj.write(
                 (savefmtcmp('V5', self.dose_units, self.relative_dose(), dvh.relative_dose())))
         print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
+        # print(self.volume_constraint(20, 'Gy'))
+        # print(dvh.volume_constraint(20, 'Gy'))
+
 
         fileObj.write(savefmtcmp('volume', self.dose_units))
         fileObj.write(savefmtcmp('max', self.dose_units))
@@ -2744,6 +2745,7 @@ class dvhdata(DVH):
                 *fmtcmp('V5', self.dose_units,
                         self.relative_dose(), dvh.relative_dose())))
         print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
+
         # self.plot()
         # dvh.plot()
 
@@ -2764,12 +2766,21 @@ class dvhdata(DVH):
                 plt.legend(loc='best')
         return self
 
-    def cal_nrmsd(self, dvh):
+    def cal_nrmsd(self, dvh, result):
+
+        fileObj = open(result, 'a')
+
         h1 = self.bins
         h2 = dvh.bins
 
         rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+        value = dvh.notes + ',' + dvh.name + ',' + str(rms) + '\n'
+        fileObj.write(value)
+        fileObj.close()
         print(rms)
+    # def OAR_constans(self,abs_dose):
+    #     self.cumulative
+    #     self.
 
 
 
@@ -2808,16 +2819,23 @@ if __name__ == "__main__":
                         # print('abs')
                         #
                         # dvh_cal.compare(dvh_tps)
-                        h1 = dvh_cal.bins
-                        h2 = dvh_tps.bins
+                        h1 = dvh_cal.counts
+                        h2 = dvh_tps.counts
                         rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
-                        print("binsdiff:%f", rms)
-                        dvh_cal = dvh_cal.relative_volume
-                        dvh_tps = dvh_tps.relative_volume
+                        print("binsdiffOfAbs:%f", rms)
+
+                        # dvh_cal = dvh_cal.relative_volume
+                        # dvh_tps = dvh_tps.relative_volume
+                        #
+                        # h1 = dvh_cal.counts
+                        # h2 = dvh_tps.counts
+                        # rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+                        # print("binsdiffofRelative:%f", rms)
+
                         # print('relative')
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
-                        # dvhdata_cal.cal_nrmsd(dvhdata_tps)
+                        dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
                         # dvhdata_cal.plot()
                         # dvhdata_tps.plot()
@@ -2827,8 +2845,11 @@ if __name__ == "__main__":
                         #
                         # dvh_tps = getRelativeVolumeDVH(dvh_tps)
                         # dvh_tps.plot()
+                        dvhdata_cal = None
+                        dvhdata_tps = None
                     dvh_tps = None
                     dvh_cal = None
+
                 elif Roi['type'] == 'ORGAN':
                     dvh_tps = getTPSDVH(
                         tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
@@ -2841,12 +2862,12 @@ if __name__ == "__main__":
                             dvh_cal = None
                             continue
 
-                        dvh_cal = dvh_cal.relative_volume
-                        dvh_tps = dvh_tps.relative_volume
+                        # dvh_cal = dvh_cal.relative_volume
+                        # dvh_tps = dvh_tps.relative_volume
                         # print('relative')
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
-                        dvhdata_cal.cal_nrmsd(dvhdata_tps)
+                        dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
                         # dvhdata_cal.plot()
                         # dvhdata_tps.plot()
@@ -2856,6 +2877,8 @@ if __name__ == "__main__":
                         #
                         # dvh_tps = getRelativeVolumeDVH(dvh_tps)
                         # dvh_tps.plot()
+                        dvhdata_cal = None
+                        dvhdata_tps = None
                     dvh_tps = None
                     dvh_cal = None
 
