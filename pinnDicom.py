@@ -13,6 +13,7 @@ import time  # used for getting current date and time for file
 from functools import reduce
 from random import randint
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pydicom as dicom
 import pydicom.uid
@@ -2673,6 +2674,11 @@ class dvhdata(DVH):
         fileObj.write(savefmtcmp('D2cc', self.dose_units))
         fileObj.close()
 
+        # self.plot()
+        # dvh.plot()
+
+
+
     def compare(self, dvh):
         """Compare the DVH properties with another DVH.
 
@@ -2746,8 +2752,8 @@ class dvhdata(DVH):
                         self.relative_dose(), dvh.relative_dose())))
         print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
 
-        # self.plot()
-        # dvh.plot()
+        self.plot()
+        dvh.plot()
 
     def plot(self):
         """Plot the DVH using Matplotlib if present."""
@@ -2759,11 +2765,13 @@ class dvhdata(DVH):
             plt.plot(self.bincenters, self.counts, label=self.name,
                      color=None if not isinstance(self.color, np.ndarray) else
                      (self.color / 255))
-            plt.axis([0, 70, 0, 110])  # for relative volume
+            plt.axis([0, 70, 0, 80])  # for relative volume
             plt.xlabel('Dose [%s]' % self.dose_units)
             plt.ylabel('Volume [%s]' % self.volume_units)
             if self.name:
                 plt.legend(loc='best')
+            plt.grid(True)
+            plt.show()
         return self
 
     def cal_nrmsd(self, dvh, result):
@@ -2804,84 +2812,217 @@ if __name__ == "__main__":
             print("%s,%s\n", patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
+            # for (key, Roi) in structs.items():
+            #     print('============================')
+            #     print(key, Roi['name'])
+            #     if Roi['type'] == 'MARKER':
+            #         continue
+            #     elif Roi['type'] == 'TARGET':
+            #         dvh_tps = getTPSDVH(
+            #             tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+            #         if dvh_tps:
+            #             dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+            #             # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+            #         if dvh_tps and dvh_cal:
+            #             # print('abs')
+            #             #
+            #             # dvh_cal.compare(dvh_tps)
+            #             h1 = dvh_cal.counts
+            #             h2 = dvh_tps.counts
+            #             rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+            #             print("binsdiffOfAbs:%f", rms)
+            #
+            #             dvh_cal = dvh_cal.relative_volume
+            #             dvh_tps = dvh_tps.relative_volume
+            #             #
+            #             # h1 = dvh_cal.counts
+            #             # h2 = dvh_tps.counts
+            #             # rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+            #             # print("binsdiffofRelative:%f", rms)
+            #
+            #             # print('relative')
+            #             dvhdata_cal = dvhdata(dvh_cal)
+            #             dvhdata_tps = dvhdata(dvh_tps)
+            #             dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
+            #             dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+            #             # dvhdata_cal.plot()
+            #             # dvhdata_tps.plot()
+            #             # with open('dvhdatalist.pkl','ab+') as f:
+            #             #     dill.dump(dvhdata_cal,f)
+            #             #     dill.dump(dvhdata_tps,f)
+            #             #
+            #             # dvh_tps = getRelativeVolumeDVH(dvh_tps)
+            #             if dvh_tps.name == 'GTV' :
+            #                 plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name,linestyle='solid',color='r')
+            #                 plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_tps.name,linestyle='dashed',color='r')
+            #
+            #                 plt.axis([0, 70, 0, 105])  # for relative volume
+            #                 plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+            #                 plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+            #                 if dvh_tps.name:
+            #                     plt.legend(loc='best')
+            #                 plt.grid(True)
+            #             if dvh_tps.name == 'PTV1':
+            #                 plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name,linestyle='solid',color='b')
+            #                 plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_tps.name,linestyle='dashed',color='b')
+            #
+            #                 plt.axis([0, 70, 0, 105])  # for relative volume
+            #                 plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+            #                 plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+            #                 if dvh_tps.name:
+            #                     plt.legend(loc='best')
+            #                 plt.grid(True)
+            #             dvhdata_cal = None
+            #             dvhdata_tps = None
+            #         dvh_tps = None
+            #         dvh_cal = None
+            #
+            #     elif Roi['type'] == 'ORGAN':
+            #         dvh_tps = getTPSDVH(
+            #             tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+            #         if dvh_tps:
+            #             dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+            #             #4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+            #         if dvh_tps and dvh_cal:
+            #             if dvh_cal.volume == 0:
+            #                 dvh_tps = None
+            #                 dvh_cal = None
+            #                 continue
+            #
+            #             dvh_cal = dvh_cal.relative_volume
+            #             dvh_tps = dvh_tps.relative_volume
+            #             # print('relative')
+            #             dvhdata_cal = dvhdata(dvh_cal)
+            #             dvhdata_tps = dvhdata(dvh_tps)
+            #             dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
+            #             dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+            #             # dvhdata_cal.plot()
+            #             # dvhdata_tps.plot()
+            #             # with open('dvhdatalist.pkl','ab+') as f:
+            #             #     dill.dump(dvhdata_cal,f)
+            #             #     dill.dump(dvhdata_tps,f)
+            #             #
+            #             # dvh_tps = getRelativeVolumeDVH(dvh_tps)
+            #             if dvh_tps.name == 'Parotid_L' :
+            #                 # plt.axis([0, 70, 0, 80])  # for relative volume
+            #                 # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+            #                 # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+            #
+            #                 # plt.grid(True)
+            #                 plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid',
+            #                          color='y')
+            #                 plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_tps.name, linestyle='dashed',
+            #                          color='y')
+            #                 if dvh_tps.name:
+            #                     plt.legend(loc='best')
+            #             if dvh_tps.name == 'Esophagus':
+            #                 # plt.axis([0, 70, 0, 80])  # for relative volume
+            #                 # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+            #                 # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+            #
+            #                 # plt.grid(True)
+            #                 plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid',
+            #                          color='g')
+            #                 plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_tps.name, linestyle='dashed',
+            #                          color='g')
+            #                 if dvh_tps.name:
+            #                     plt.legend(loc='best')
+            #
+            #             dvhdata_cal = None
+            #             dvhdata_tps = None
+            #         dvh_tps = None
+            #         dvh_cal = None
+
             for (key, Roi) in structs.items():
                 print('============================')
                 print(key, Roi['name'])
                 if Roi['type'] == 'MARKER':
                     continue
-                elif Roi['type'] == 'TARGET':
+                elif Roi['type'] == 'ORGAN' and Roi['name'] == 'Brainstem':
+
                     dvh_tps = getTPSDVH(
                         tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
                     if dvh_tps:
                         dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
                         # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
                     if dvh_tps and dvh_cal:
-                        # print('abs')
-                        #
-                        # dvh_cal.compare(dvh_tps)
-                        h1 = dvh_cal.counts
-                        h2 = dvh_tps.counts
-                        rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
-                        print("binsdiffOfAbs:%f", rms)
 
-                        # dvh_cal = dvh_cal.relative_volume
-                        # dvh_tps = dvh_tps.relative_volume
-                        #
-                        # h1 = dvh_cal.counts
-                        # h2 = dvh_tps.counts
-                        # rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
-                        # print("binsdiffofRelative:%f", rms)
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_tps.name, linestyle='dashed', color='r')
+                        plt.axis([0, 70, 0, 110])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
 
-                        # print('relative')
+                        dvh_cal = dvh_cal.relative_volume
+                        dvh_tps = dvh_tps.relative_volume
+
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
-                        dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-                        # dvhdata_cal.plot()
-                        # dvhdata_tps.plot()
-                        # with open('dvhdatalist.pkl','ab+') as f:
-                        #     dill.dump(dvhdata_cal,f)
-                        #     dill.dump(dvhdata_tps,f)
-                        #
-                        # dvh_tps = getRelativeVolumeDVH(dvh_tps)
-                        # dvh_tps.plot()
-                        dvhdata_cal = None
-                        dvhdata_tps = None
-                    dvh_tps = None
-                    dvh_cal = None
 
-                elif Roi['type'] == 'ORGAN':
-                    dvh_tps = getTPSDVH(
-                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='b')
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        dvhdata_tps = None
+
                     if dvh_tps:
-                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                        #4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
-                    if dvh_tps and dvh_cal:
-                        if dvh_cal.volume == 0:
-                            dvh_tps = None
-                            dvh_cal = None
-                            continue
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 8),
+                                                  interpolation_segments_between_planes=2, use_structure_extents=True)
 
-                        # dvh_cal = dvh_cal.relative_volume
-                        # dvh_tps = dvh_tps.relative_volume
-                        # print('relative')
+                    if dvh_tps and dvh_cal:
+
+                        dvh_cal = dvh_cal.relative_volume
+                        dvh_tps = dvh_tps.relative_volume
+
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
-                        dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-                        # dvhdata_cal.plot()
-                        # dvhdata_tps.plot()
-                        # with open('dvhdatalist.pkl','ab+') as f:
-                        #     dill.dump(dvhdata_cal,f)
-                        #     dill.dump(dvhdata_tps,f)
-                        #
-                        # dvh_tps = getRelativeVolumeDVH(dvh_tps)
-                        # dvh_tps.plot()
-                        dvhdata_cal = None
+
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='y')
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
                         dvhdata_tps = None
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 16),
+                                                  interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps and dvh_cal:
+                        dvh_cal = dvh_cal.relative_volume
+                        dvh_tps = dvh_tps.relative_volume
+
+                        dvhdata_cal = dvhdata(dvh_cal)
+                        dvhdata_tps = dvhdata(dvh_tps)
+                        dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid',
+                                 color='y')
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        dvhdata_tps = None
+
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 32),
+                                                  interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps and dvh_cal:
+                        dvh_cal = dvh_cal.relative_volume
+                        dvh_tps = dvh_tps.relative_volume
+
+                        dvhdata_cal = dvhdata(dvh_cal)
+                        dvhdata_tps = dvhdata(dvh_tps)
+                        dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid',
+                                 color='g')
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.show()
+                        dvhdata_tps = None
+
                     dvh_tps = None
                     dvh_cal = None
 
+            plt.show()
             Rs = None
             Rd = None
     #
