@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-
 import logging
 import os
 import sys
 
+import imView
 import numpy as np
 from box import BoxList
-
 from pinn2Json import pinn2Json
-
-# from box import Box
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
@@ -21,9 +18,10 @@ logging.basicConfig(level=logging.DEBUG,
 # 定义一个StreamHandler，将INFO级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+formatter = logging.Formatter('%(name)-6s: %(levelname)-6s %(message)s')
 console.setFormatter(formatter)
 logging.getLogger('').addHandler(console)
+
 
 
 class parseWholePatient(object):
@@ -111,6 +109,7 @@ class parseWholePatient(object):
             planDict['VolumeInfo'] = pinn2Json().read(
                 os.path.join(planDirAbsPath, 'plan.VolumeInfo'))
 
+        logging.info('Reading ROIs, will taking long time, waiting..... ')
         if os.path.isfile(os.path.join(planDirAbsPath, 'plan.roi')):
             planDict['rois'] = pinn2Json().read(
                 os.path.join(planDirAbsPath, 'plan.roi'))
@@ -125,10 +124,15 @@ class parseWholePatient(object):
                 os.path.join(planDirAbsPath, 'plan.Trial'))
             if 'TrialList' in planTrialData:
                 currentTrailList = planTrialData['TrialList']
+                logging.info("PlanHave %d Trials", len(currentTrailList))
                 for currentTrail in currentTrailList:
+                    logging.info('======================')
+                    logging.info("Trial:%s", currentTrail.Name)
                     data = self.readTrialMaxtrixData(
                         planDirAbsPath, currentTrail, planDict)
             else:
+                logging.info('======================')
+                logging.info("Trial:%s", planTrialData.Trial.Name)
                 data = self.readTrialMaxtrixData(
                     planDirAbsPath, planTrialData['Trial'], planDict)
 
@@ -176,6 +180,11 @@ class parseWholePatient(object):
             if imHdr.byte_order == 0:
                 imData = imData.byteswap(True)
 
+
+        ctVoxSize = [imHdr.z_pixdim, imHdr.y_pixdim, imHdr.x_pixdim]
+
+        f1 = imView.slicesView(imData, voxSize=ctVoxSize)
+
         return imHdr, imData
 
     def getContours(self, planControurData):
@@ -185,6 +194,75 @@ class parseWholePatient(object):
             for curROI in roiList:
                 logging.info(curROI.name)
                 logging.info(curROI.num_curve)
+
+    ####################################################################################################################################################
+    # Function: getstructshift()
+    # Purpose: reads in values from ImageSet_0.header to get x and y shift
+    ####################################################################################################################################################
+    def getstructshift(imageHeadFile):
+        xshift = 0
+        yshift = 0
+        zshift = 0
+
+        imgHdr = pinn2Json().read(imageHeadFile)
+        x_dim = float(imgHdr.x_dim)
+        y_dim = float(imgHdr.y_dim)
+        z_dim = float(imgHdr.z_dim)
+        xpixdim = float(imgHdr.x_pixdim)
+        ypixdim = float(imgHdr.y_pixdim)
+        zpixdim = float(imgHdr.z_pixdim)
+
+        #pinnacle version differences
+        # xstart = float(imgHdr.x_start_dicom)
+        # ystart = float(imgHdr.y_start_dicom)
+
+        xstart = float(imgHdr.x_start)
+        ystart = float(imgHdr.y_start)
+        zstart = float(imgHdr.z_start)
+        patient_position = imgHdr.patient_position
+        # with open("%s%s/ImageSet_%s.header" % (Inputf, patientfolder, imagesetnumber), "rt", encoding=u'utf-8',
+        #           errors='ignore') as f2:
+        #     for line in f2:
+        #         if "x_dim =" in line:
+        #             x_dim = float((line.split(" ")[-1]).replace(';', ''))
+        #         if "y_dim =" in line:
+        #             y_dim = float((line.split(" ")[-1]).replace(';', ''))
+        #         if "x_pixdim =" in line:
+        #             xpixdim = float((line.split(" ")[-1]).replace(';', ''))
+        #         if "y_pixdim =" in line:
+        #             ypixdim = float((line.split(" ")[-1]).replace(';', ''))
+        #         if "x_start =" in line and "index" not in line:
+        #             xstart = float((line.split(" ")[-1]).replace(';', ''))
+        #             print("xstart = ", xstart)
+        #         if "y_start =" in line:
+        #             ystart = float((line.split(" ")[-1]).replace(';', ''))
+        #         if "z_dim =" in line:
+        #             z_dim = float((line.split(" ")[-1]).replace(';', ''))
+        #         if "z_pixdim =" in line:
+        #             zpixdim = float((line.split(" ")[-1]).replace(';', ''))
+        #         if "z_start =" in line and "index" not in line:
+        #             zstart = float((line.split(" ")[-1]).replace(';', ''))
+        if patient_position == 'HFS':
+            xshift = ((x_dim * xpixdim / 2) + xstart) * 10
+            yshift = -((y_dim * ypixdim / 2) + ystart) * 10
+            zshift = -((z_dim * zpixdim / 2) + zstart) * 10
+        elif patient_position == 'HFP':
+            xshift = -((x_dim * xpixdim / 2) + xstart) * 10
+            yshift = ((y_dim * ypixdim / 2) + ystart) * 10
+            zshift = -((z_dim * zpixdim / 2) + zstart) * 10
+        elif patient_position == 'FFP':
+            xshift = ((x_dim * xpixdim / 2) + xstart) * 10
+            yshift = ((y_dim * ypixdim / 2) + ystart) * 10
+            zshift = ((z_dim * zpixdim / 2) + zstart) * 10
+        elif patient_position == 'FFS':
+            xshift = -((x_dim * xpixdim / 2) + xstart) * 10
+            yshift = -((y_dim * ypixdim / 2) + ystart) * 10
+            zshift = ((z_dim * zpixdim / 2) + zstart) * 10
+
+        logging.info("X shift = %s", xshift)
+        logging.info("Y shift = %s", yshift)
+        logging.info("Z shift = %s", zshift)
+        return (xshift,yshift,zshift)
 
     def readTrialMaxtrixData(self, trialBasePath, curTrial, planDict):
 
@@ -226,6 +304,8 @@ class parseWholePatient(object):
                            bm.MonitorUnitInfo.CollimatorOutputFactor * \
                            bm.MonitorUnitInfo.TotalTransmissionFraction
                 dosePerMU = 0.665
+                #getting dose/Mu from the plan.Pinnacle.Machines file
+                # dosePerMU = self.getDosePerMU()
                 MUs = bm.MonitorUnitInfo.PrescriptionDose / (bmFactor * dosePerMU)
                 logging.info('%s:%d', bm.Name, MUs)
 
@@ -419,6 +499,15 @@ class parseWholePatient(object):
 
     # ----------------------------------------- #
 
+def plotCT(planTrialFile):
+    """
+    Display the CT in a 3 plane image view gui
+    """
+    ctData, ctHdr = readCT(planTrialFile)
+
+    ctVoxSize = [ctHdr.z_pixdim, ctHdr.y_pixdim, ctHdr.x_pixdim]
+
+    f1 = imView.slicesView(ctData, voxSize=ctVoxSize)
 
 class buildPatientPlan(object):
     pass
@@ -429,6 +518,8 @@ class DoseInvalidException(Exception):
 
 
 if __name__ == '__main__':
-    patientPlanDir = '/home/peter/PinnWork/Patient_35895/'
-    planObject = parseWholePatient(patientPlanDir)
+    workingPath = os.path.join(os.getenv('HOME'), 'PinnWork')
+    inputfolder = os.path.join(workingPath, 'Mount_0/')
+
+    planObject = parseWholePatient(os.path.join(inputfolder,'Patient_28471'))
     planObject.getPatientDict()
