@@ -11,44 +11,124 @@ from box import BoxList
 from pinn2Json import pinn2Json
 from parsePatientPlan import parsePatientPlan
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
-                    datefmt='%a, %d %b %Y %H:%M:%S',
-                    filename='convert_whole_patient.log',
-                    filemode='w')
-# 定义一个StreamHandler，将INFO级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-formatter = logging.Formatter('%(name)-6s: %(levelname)-6s %(message)s')
-console.setFormatter(formatter)
-logging.getLogger('').addHandler(console)
-
 
 class buildPatientPlan(object):
     def __init__(self):
         pass
 
     def buildPlan(self, planRawDataDict):
-        for plan in planRawDataDict['PlanList']:
-            Get
+        planRawData = planRawDataDict.patientBaseDict
+        if 'planListRawData' in planRawData:
+            for plan in planRawData.planListRawData:
+                logging.info('planName:%s', plan.PlanName)
+                refImageID = plan.PrimaryCTImageSetID
+                refImageHder = None
+                refImageData = None
+                for image in planRawData.imageSetListRawData:
+                    if image.ImageSetID == refImageID:
+                        refImageHder = image.CTHeader
+                        refImageData = image.CTData
+                        break
 
-    def getContours(self, planControurData, patient_position, shiftVoctor):
+                setupPosition = None
+                roiShiftVector = None
+                if refImageHder:
+                    setupPosition = refImageHder.patient_position
+                    roiShiftVector = self.getStructShift(refImageHder)
+
+                if 'planPointsRawData' in plan.planData:
+                    pointsDict = self.getPoints(
+                        plan.planData.planPointsRawData, setupPosition, roiShiftVector)
+
+                if 'planROIsRawData' in plan.planData:
+                    contourDict = self.getContours(
+                        plan.planData.planROIsRawData, setupPosition, roiShiftVector)
+
+                if 'planTrialsRawData' in plan.planData:
+                    trialData = self.getTrialData(
+                        plan.planData.planTrialsRawData)
+
+    def getTrialData(self, planTrialData):
+        if 'trialListRawData' in planTrialData:
+            currentTrailList = planTrialData['TrialList']
+            logging.info("PlanHave %d Trials", len(currentTrailList))
+            for currentTrail in currentTrailList:
+                logging.info("Trial:%s", currentTrail.Name)
+                data = self.readTrialMaxtrixData(
+                    planDirAbsPath, currentTrail, planDict)
+        else:
+            logging.info('======================')
+            logging.info("Trial:%s", planTrialData.Trial.Name)
+            data = self.readTrialMaxtrixData(
+                planDirAbsPath, planTrialData['Trial'], planDict)
+
+    def getContours(self, planControurData, patient_position, shiftVector):
+        roiListData =
         if 'roiList' in planControurData:
-            roiList = planControurData['roiList']
-            for curROI in roiList:
-                logging.info(curROI.name)
-                logging.info(curROI.num_curve)
+            for curROI in planControurData['roiList']:
+                logging.info("ROIName:%s", curROI.name)
+                logging.info("ROICTName:%s", curROI.volume_name)
+                logging.info('num_curve:%d', len(curROI.num_curve))
+                for i, curve in enumerate(curROI.num_curve, 0):
+                    curvePoints = []
+                    for curr_points in curve.Points:
+                        if patient_position == 'HFS':
+                            #curr_points = [str(float(curr_points[0])*10), str(float(curr_points[1])*10), str(float(curr_points[2])*10)]
+                            curr_points = [str(float(curr_points[0]) * 10 - shiftVector[0]), str(-float(
+                                curr_points[1]) * 10 - shiftVector[1]), str(-float(curr_points[2]) * 10)]
+                        elif patient_position == 'HFP':
+                            curr_points = [str(-float(curr_points[0]) * 10 - shiftVector[0]), str(
+                                float(curr_points[1]) * 10 - shiftVector[1]), str(-float(curr_points[2]) * 10)]
+                        elif patient_position == 'FFP':
+                            curr_points = [str(float(curr_points[0]) * 10 - shiftVector[0]), str(
+                                float(curr_points[1]) * 10 - shiftVector[1]), str(float(curr_points[2]) * 10)]
+                        elif patient_position == 'FFS':
+                            curr_points = [str(-float(curr_points[0]) * 10 - shiftVector[0]), str(-float(
+                                curr_points[1]) * 10 - shiftVector[1]), str(float(curr_points[2]) * 10)]
+                        curvePoints = curvePoints + curr_points
 
+    def getPoints(self, planPointsData, patient_position, shiftVector):
+        pointData = BoxList()
+        for point in planPointsData.PoiList:
+            x_coord = 0.0
+            y_coord = 0.0
+            z_coord = 0.0
+            if patient_position == 'HFS':
+                x_coord = str(float(point.XCoord) * 10)
+                y_coord = str(-float(point.YCoord) * 10)
+                z_coord = str(-float(point.ZCoord) * 10)
+            elif patient_position == 'HFP':
+                x_coord = str(-float(point.XCoord) * 10)
+                y_coord = str(float(point.YCoord) * 10)
+                z_coord = str(-float(point.ZCoord) * 10)
+            elif patient_position == 'FFS':
+                x_coord = str(-float(point.XCoord) * 10)
+                y_coord = str(-float(point.YCoord) * 10)
+                z_coord = str(float(point.ZCoord) * 10)
+            elif patient_position == 'FFP':
+                x_coord = str(float(point.XCoord) * 10)
+                y_coord = str(-float(point.YCoord) * 10)
+                z_coord = str(float(point.ZCoord) * 10)
+            point.xCoord = x_coord
+            point.yCoord = y_coord
+            point.zCoord = z_coord
+            pointData.append(point)
+            printformatter = '\"%s:' + \
+                (point.CoordinateFormat + ",") * 3 + '\"'
+            logging.info(printformatter, point.Name, float(
+                x_coord), float(y_coord), float(z_coord))
+        return pointData
     ####################################################################################################################################################
     # Function: getstructshift()
     # Purpose: reads in values from ImageSet_0.header to get x and y shift
     ####################################################################################################################################################
-    def getStructShift(self, imageHeadFile):
+
+    def getStructShift(self, imgHdr):
         xshift = 0
         yshift = 0
         zshift = 0
 
-        imgHdr = pinn2Json().read(imageHeadFile)
+        # imgHdr = pinn2Json().read(imageHeadFile)
         x_dim = float(imgHdr.x_dim)
         y_dim = float(imgHdr.y_dim)
         z_dim = float(imgHdr.z_dim)
@@ -64,28 +144,6 @@ class buildPatientPlan(object):
         ystart = float(imgHdr.y_start)
         zstart = float(imgHdr.z_start)
         patient_position = imgHdr.patient_position
-        # with open("%s%s/ImageSet_%s.header" % (Inputf, patientfolder, imagesetnumber), "rt", encoding=u'utf-8',
-        #           errors='ignore') as f2:
-        #     for line in f2:
-        #         if "x_dim =" in line:
-        #             x_dim = float((line.split(" ")[-1]).replace(';', ''))
-        #         if "y_dim =" in line:
-        #             y_dim = float((line.split(" ")[-1]).replace(';', ''))
-        #         if "x_pixdim =" in line:
-        #             xpixdim = float((line.split(" ")[-1]).replace(';', ''))
-        #         if "y_pixdim =" in line:
-        #             ypixdim = float((line.split(" ")[-1]).replace(';', ''))
-        #         if "x_start =" in line and "index" not in line:
-        #             xstart = float((line.split(" ")[-1]).replace(';', ''))
-        #             print("xstart = ", xstart)
-        #         if "y_start =" in line:
-        #             ystart = float((line.split(" ")[-1]).replace(';', ''))
-        #         if "z_dim =" in line:
-        #             z_dim = float((line.split(" ")[-1]).replace(';', ''))
-        #         if "z_pixdim =" in line:
-        #             zpixdim = float((line.split(" ")[-1]).replace(';', ''))
-        #         if "z_start =" in line and "index" not in line:
-        #             zstart = float((line.split(" ")[-1]).replace(';', ''))
         if patient_position == 'HFS':
             xshift = ((x_dim * xpixdim / 2) + xstart) * 10
             yshift = -((y_dim * ypixdim / 2) + ystart) * 10
@@ -107,25 +165,6 @@ class buildPatientPlan(object):
         logging.info("Y shift = %s", yshift)
         logging.info("Z shift = %s", zshift)
         return [xshift, yshift, zshift]
-
-    def getTrialData(self):
-        if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Trial')):
-            logging.info('======================')
-            logging.info('Reading Trials, waiting..... ')
-            planTrialData = pinn2Json().read(
-                os.path.join(planDirAbsPath, 'plan.Trial'))
-            # if 'TrialList' in planTrialData:
-            #     currentTrailList = planTrialData['TrialList']
-            #     logging.info("PlanHave %d Trials", len(currentTrailList))
-            #     for currentTrail in currentTrailList:
-            #         logging.info("Trial:%s", currentTrail.Name)
-            #         # #data = self.readTrialMaxtrixData(
-            #         #     planDirAbsPath, currentTrail, planDict)
-            # else:
-            #     logging.info('======================')
-            #     logging.info("Trial:%s", planTrialData.Trial.Name)
-            #     data = self.readTrialMaxtrixData(
-            #         planDirAbsPath, planTrialData['Trial'], planDict)
 
     def readTrialMaxtrixData(self, trialBasePath, curTrial, planDict):
 

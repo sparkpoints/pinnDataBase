@@ -3,6 +3,8 @@
 import json
 import re
 import sys
+import os
+
 from optparse import OptionParser
 
 import numpy as np
@@ -106,6 +108,10 @@ class pinn2Json(object):
             r'\/\*[^*]*\*+([^/][^*]*\*+)*\/', '', pinnFileText, re.DOTALL)
         pinnFileText = re.sub(r'\n\n', '', pinnFileText)
 
+        # remove roi_name like : name : 6000 (Trial_1)
+        pinnFileText = re.sub("name:\s(\d+)\s\((.*)\)",
+                              'name:ring', pinnFileText)
+
         return pinnFileText
 
     def pinn2Json(self, pinnFileText):
@@ -162,8 +168,8 @@ class pinn2Json(object):
                     pEnd = primaryEnd[len(sectionName) -
                                       sectionName[::-1].index(sName) - 1]
                     pinnFileText = pinnFileText[:pStart - len(sName) - 1] + sName.strip() + \
-                                   "List ={\n" + sName + "=" + pinnFileText[pStart:pEnd] + "\n};\n" + \
-                                   pinnFileText[pEnd:]
+                        "List ={\n" + sName + "=" + pinnFileText[pStart:pEnd] + "\n};\n" + \
+                        pinnFileText[pEnd:]
                     break
 
             # match1 = re.search("\w*(?= {0,1}={)",pinnFileText)
@@ -181,6 +187,7 @@ class pinn2Json(object):
         # pinnFileText = re.sub(r'#(\d?)\s*(=\{)',r'Number\1 \2',pinnFileText)
         # pinnFileText = re.sub('^#0\s*={','Number0 ={',pinnFileText)
         # pinnFileText = re.sub('\n#1\s*={','Number1 ={',pinnFileText)
+
         pinnFileText = re.sub('\+*', '', pinnFileText)
         # Remove single line comments
         pinnFileText = re.sub('^//.*?\n', '', pinnFileText, re.MULTILINE)
@@ -245,7 +252,16 @@ class pinn2Json(object):
         # f1.write(pinnFileText)
         # f1.close()
 
+        # modifiying ROI-curveList 2019-04-12
+        pinnFileText = re.sub('\n\"num_curve\"(.*)\n',
+                              '\n\"num_curve\" : [\n', pinnFileText)
+        pinnFileText = re.sub('\n\"surface_mesh\"',
+                              '\n],\n\"surface_mesh\"', pinnFileText)
+        pinnFileText = re.sub('\n\"curve\"\s:\s\{\n', "\n{", pinnFileText)
+
         # Convert plan.roi points into plan.Trial Points[], vertices,triangles,
+        # pinnFileText = re.sub(
+        #     r'\n\s*"curve" ?: ?{\n', r'\n"curve[]" :{\n', pinnFileText)
         pinnFileText = re.sub(
             r'\n\s*"points" ?: ?{\n', r'\n"Points[]" :{\n', pinnFileText)
         pinnFileText = re.sub(
@@ -284,6 +300,8 @@ class pinn2Json(object):
         # f1.close()
 
         # Convert Points[] : { N,N } arrays to Points : [ N,N ] (match anything except '}')
+        # pinnFileText = re.sub(
+        #     r'"curve\[\]" ?: ?{\n([^}]*)}', r'"curve" : [\n\1]', pinnFileText)
         pinnFileText = re.sub(
             r'"Points\[\]" ?: ?{\n([^}]*)}', r'"Points" : [\n\1]', pinnFileText)
         pinnFileText = re.sub(
@@ -376,7 +394,7 @@ class pinn2Json(object):
 
             # Set text to previous portion + extract + subsequent portion
             pinnFileText = pinnFileText[:listSt] + 'List" : [' + \
-                           extract[9:-1] + "]," + pinnFileText[listEnd + 1:]
+                extract[9:-1] + "]," + pinnFileText[listEnd + 1:]
 
         # f1 = open('debug12','w')
         # f1.write(pinnFileText)
@@ -451,7 +469,7 @@ class pinn2Json(object):
                     if prevEnd > 0:
                         txtAdded = "\n};\n"
                         fileTxt = fileTxt[:prevEnd + charDelta] + \
-                                  txtAdded + fileTxt[prevEnd + charDelta:]
+                            txtAdded + fileTxt[prevEnd + charDelta:]
                         charDelta += len(txtAdded)
                         prevEnd = m1.end()
                         nBrktsClose += 1
@@ -465,7 +483,7 @@ class pinn2Json(object):
                     #		"***" + repr(txtAdded) + "***" + repr(fileTxt[ch2:ch2+50]) )
 
                     fileTxt = fileTxt[:m1.start() + charDelta] + \
-                              txtAdded + fileTxt[m1.end() + charDelta:]
+                        txtAdded + fileTxt[m1.end() + charDelta:]
                     charDelta += len(txtAdded) + m1.start() - m1.end()
                     prevEnd = m1.end()
                     prevSection = grps[0]
@@ -481,7 +499,7 @@ class pinn2Json(object):
                     #		"***" + repr(txtAdded) + "***" + repr(fileTxt[ch2:ch2+50]) )
 
                     fileTxt = fileTxt[:m1.start() + charDelta] + \
-                              txtAdded + fileTxt[m1.end() + charDelta:]
+                        txtAdded + fileTxt[m1.end() + charDelta:]
                     charDelta += len(txtAdded) + m1.start() - m1.end()
                     prevEnd = m1.end()
             else:
@@ -490,7 +508,7 @@ class pinn2Json(object):
         if nBrktsOpen > 0:
             txtAdded = "};\n"
             fileTxt = fileTxt[:prevEnd + charDelta] + \
-                      txtAdded + fileTxt[prevEnd + charDelta:]
+                txtAdded + fileTxt[prevEnd + charDelta:]
             # charDelta += len(txtAdded)
             # nBrktsClose += 1
 
@@ -654,16 +672,24 @@ if __name__ == "__main__":
     #						type="string", action="store", default="NO^NAME", \
     #						help="Annonomize images by changing name to annonName.")
 
-    (options, args) = parser.parse_args()
+    workingPath = os.path.join(os.getenv('HOME'), 'PinnWork')
+    filename = os.path.join(workingPath, 'Mount_0/Patient_28471/Plan_0/plan.roi')
+    # filename = os.path.join(workingPath, 'test.roi')
 
-    if options.runTest:
-        test()
-    elif len(args) < 1:
-        print("No pinnacle file found !!")
-        parser.print_help()
-    else:
-        filename = args[0]
-        pinnObjList = read(filename)
+    pinnObjList = pinn2Json().read(filename)
 
-        for scriptObj in pinnObjList:
-            print(scriptObj)
+    for scriptObj in pinnObjList:
+        print(scriptObj)
+    # (options, args) = parser.parse_args()
+    #
+    # if options.runTest:
+    #     test()
+    # elif len(args) < 1:
+    #     print("No pinnacle file found !!")
+    #     parser.print_help()
+    # else:
+    #     filename = args[0]
+    #     pinnObjList = read(filename)
+    #
+    #     for scriptObj in pinnObjList:
+    #         print(scriptObj)

@@ -36,16 +36,15 @@ class parsePatientPlan(object):
         parseDir = self.sourceDir
 
         if os.path.isfile(os.path.join(parseDir, 'Patient')):
-            baseDict = pinn2Json().read(os.path.join(parseDir, 'Patient'))
-            self.patientBaseDict= baseDict
+            self.patientBaseDict = pinn2Json().read(os.path.join(parseDir, 'Patient'))
         else:
             logging.error('may be a empty plan! skip')
             return None
 
         patientImageSetList = BoxList()
-        if 'ImageSetList' in baseDict:
-            image_set_list = baseDict.get('ImageSetList')
-            for imageSet in image_set_list:
+        if 'ImageSetList' in self.patientBaseDict:
+            # image_set_list = baseDict.get('ImageSetList')
+            for imageSet in self.patientBaseDict.ImageSetList:
                 logging.info('ImageSet_%s', imageSet.ImageSetID)
                 if 'phantom' in imageSet.SeriesDescription:
                     logging.warning('this is Phantom for QA, skip!')
@@ -54,12 +53,12 @@ class parsePatientPlan(object):
                 (imageSet['CTHeader'], imageSet['CTData']
                  ) = self.readCT(imageSet.ImageName)
                 patientImageSetList.append(imageSet)
-        self.patientBaseDict['ImageSetList'] = patientImageSetList
+        self.patientBaseDict['imageSetListRawData'] = patientImageSetList
 
         patientPlanList = BoxList()
-        if 'PlanList' in baseDict:
-            plan_list = baseDict.get('PlanList')
-            for plan in plan_list:
+        if 'PlanList' in self.patientBaseDict:
+            # plan_list = baseDict.get('PlanList')
+            for plan in self.patientBaseDict.PlanList:
                 logging.info('plan_%s,base on ImageSet_%s',
                              plan.PlanID, plan.PrimaryCTImageSetID)
                 if 'QA' in plan.PlanName or 'copy' in plan.PlanName:
@@ -67,10 +66,9 @@ class parsePatientPlan(object):
                 else:
                     planDirName = 'Plan_' + (str)(plan.PlanID)
                     logging.info('Reading plan:%s ......', planDirName)
-                    plan['planData'] = self.readPlan(
-                        planDirName, plan.PrimaryCTImageSetID)
+                    plan['planData'] = self.readPlan(planDirName, plan.PrimaryCTImageSetID)
                 patientPlanList.append(plan)
-        self.patientBaseDict['PlanList'] = patientPlanList
+        self.patientBaseDict['planListRawData'] = patientPlanList
 
     def readCT(self, CTName):
         """
@@ -129,20 +127,19 @@ class parsePatientPlan(object):
 
         if os.path.isfile(os.path.join(planDirAbsPath, 'plan.VolumeInfo')):
             logging.info('Reading plan.VolumeInof')
-            planDict['VolumeInfo'] = pinn2Json().read(
+            planDict['planVolumeInfoRawData'] = pinn2Json().read(
                 os.path.join(planDirAbsPath, 'plan.VolumeInfo'))
 
         if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Points')):
             logging.info('Reading plan.Points')
-            planDict['Points'] = pinn2Json().read(
+            planDict['planPointsRawData'] = pinn2Json().read(
                 os.path.join(planDirAbsPath, 'plan.Points'))
-            for point in planDict['Points'].PoiList:
-                logging.info(point.Name)
+            # for point in planDict['PointsRawData'].PoiList:
+            #     logging.info(point.Name)
 
         if os.path.isfile(os.path.join(planDirAbsPath, 'plan.roi')):
             logging.info('Reading ROIs, will taking long time, waiting..... ')
-            # planDict['rois'] = pinn2Json().read(
-            #     os.path.join(planDirAbsPath, 'plan.roi'))
+            planDict['planROIsRawData'] = pinn2Json().read(os.path.join(planDirAbsPath, 'plan.roi'))
             #self.getContours(planDict['rois'], contourShiftVector)
 
         # if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Pinnacle.Machines')):
@@ -152,21 +149,8 @@ class parsePatientPlan(object):
         if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Trial')):
             logging.info('======================')
             logging.info('Reading Trials, waiting..... ')
-            planTrialData = pinn2Json().read(
+            planDict['planTrialsRawData'] = pinn2Json().read(
                 os.path.join(planDirAbsPath, 'plan.Trial'))
-            # if 'TrialList' in planTrialData:
-            #     currentTrailList = planTrialData['TrialList']
-            #     logging.info("PlanHave %d Trials", len(currentTrailList))
-            #     for currentTrail in currentTrailList:
-            #         logging.info("Trial:%s", currentTrail.Name)
-            #         # #data = self.readTrialMaxtrixData(
-            #         #     planDirAbsPath, currentTrail, planDict)
-            # else:
-            #     logging.info('======================')
-            #     logging.info("Trial:%s", planTrialData.Trial.Name)
-            #     data = self.readTrialMaxtrixData(
-            #         planDirAbsPath, planTrialData['Trial'], planDict)
-            planDict['Trial'] = planTrialData
         return planDict
 
     def printPatientDict(self):
@@ -178,15 +162,16 @@ class parsePatientPlan(object):
             logging.info("PatientName:%s%s", self.patientBaseDict.LastName,
                          self.patientBaseDict.FirstName)
             logging.info("MRN:%s", self.patientBaseDict.MedicalRecordNumber)
-            logging.info("\nimageList:")
+            logging.info("=========imageList:")
             if 'ImageSetList' in self.patientBaseDict:
                 for imageSet in self.patientBaseDict.ImageSetList:
-                    logging.info(imageSet.ImageName, imageSet.ImageSetID)
+                    logging.info("%s,%s", imageSet.ImageName,
+                                 imageSet.ImageSetID)
 
-            logging.info("\nplanList:")
+            logging.info("=======planList:")
             if 'PlanList' in self.patientBaseDict:
                 for plan in self.patientBaseDict.PlanList:
-                    logging.info(plan.PlanName, plan.PlanID,
+                    logging.info("%s,%s,%d", plan.PlanName, plan.PlanID,
                                  plan.PrimaryCTImageSetID)
 
 
