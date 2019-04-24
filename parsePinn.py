@@ -23,7 +23,6 @@ console.setFormatter(formatter)
 logging.getLogger('').addHandler(console)
 
 
-
 class parseWholePatient(object):
     def __init__(self, sourceDir):
         if not os.path.isdir(sourceDir):
@@ -180,10 +179,9 @@ class parseWholePatient(object):
             if imHdr.byte_order == 0:
                 imData = imData.byteswap(True)
 
-
         ctVoxSize = [imHdr.z_pixdim, imHdr.y_pixdim, imHdr.x_pixdim]
 
-        f1 = imView.slicesView(imData, voxSize=ctVoxSize)
+        # f1 = imView.slicesView(imData, voxSize=ctVoxSize)
 
         return imHdr, imData
 
@@ -212,7 +210,7 @@ class parseWholePatient(object):
         ypixdim = float(imgHdr.y_pixdim)
         zpixdim = float(imgHdr.z_pixdim)
 
-        #pinnacle version differences
+        # pinnacle version differences
         # xstart = float(imgHdr.x_start_dicom)
         # ystart = float(imgHdr.y_start_dicom)
 
@@ -262,7 +260,7 @@ class parseWholePatient(object):
         logging.info("X shift = %s", xshift)
         logging.info("Y shift = %s", yshift)
         logging.info("Z shift = %s", zshift)
-        return (xshift,yshift,zshift)
+        return (xshift, yshift, zshift)
 
     def readTrialMaxtrixData(self, trialBasePath, curTrial, planDict):
 
@@ -272,7 +270,8 @@ class parseWholePatient(object):
                          doseHdr.Dimension.Y,
                          doseHdr.Dimension.X))
         for pInd, ps in enumerate(curTrial.PrescriptionList):
-            logging.info('%s:%d:%d', ps.Name, ps.PrescriptionDose, ps.NumberOfFractions)
+            logging.info('%s:%d:%d', ps.Name, ps.PrescriptionDose,
+                         ps.NumberOfFractions)
 
             for bInd, bm in enumerate(curTrial.BeamList):
                 try:
@@ -301,12 +300,13 @@ class parseWholePatient(object):
                     bmDose = bmDose.byteswap(True)
 
                 bmFactor = bm.MonitorUnitInfo.NormalizedDose * \
-                           bm.MonitorUnitInfo.CollimatorOutputFactor * \
-                           bm.MonitorUnitInfo.TotalTransmissionFraction
+                    bm.MonitorUnitInfo.CollimatorOutputFactor * \
+                    bm.MonitorUnitInfo.TotalTransmissionFraction
                 dosePerMU = 0.665
-                #getting dose/Mu from the plan.Pinnacle.Machines file
+                # getting dose/Mu from the plan.Pinnacle.Machines file
                 # dosePerMU = self.getDosePerMU()
-                MUs = bm.MonitorUnitInfo.PrescriptionDose / (bmFactor * dosePerMU)
+                MUs = bm.MonitorUnitInfo.PrescriptionDose / \
+                    (bmFactor * dosePerMU)
                 logging.info('%s:%d', bm.Name, MUs)
 
                 # Weight the dose cube by the beam weight
@@ -319,7 +319,8 @@ class parseWholePatient(object):
                     if ps.WeightsProportionalTo == 'Point Dose':
                         for pt in planPoints['PoiList']:
                             if pt.Name == ps.PrescriptionPoint:
-                                doseAtPoint = self.doseAtCoord(dose, doseHdr, pt.XCoord, pt.YCoord, pt.ZCoord)
+                                doseAtPoint = self.doseAtCoord(
+                                    dose, doseHdr, pt.XCoord, pt.YCoord, pt.ZCoord)
 
                                 logging.info(doseAtPoint)
 
@@ -415,8 +416,8 @@ class parseWholePatient(object):
                                     doseAtPoint = self.doseAtCoord(
                                         bmDose, doseHdr, pt.XCoord, pt.YCoord, pt.ZCoord)
                                     doseFactor = pp.PrescriptionDose * \
-                                                 pp.NumberOfFractions * \
-                                                 (bm.Weight * 0.01 / doseAtPoint)
+                                        pp.NumberOfFractions * \
+                                        (bm.Weight * 0.01 / doseAtPoint)
 
                                     prescriptionPoint.append(
                                         [pt.XCoord, pt.YCoord, pt.ZCoord])
@@ -471,13 +472,13 @@ class parseWholePatient(object):
         zF = zCoord - zP
 
         dose = self.doseAtIndex(doseData, zP, yP, xP) * (1.0 - zF) * (1.0 - yF) * (1.0 - xF) + \
-               self.doseAtIndex(doseData, zP, yP, xP + 1) * (1.0 - zF) * (1.0 - yF) * xF + \
-               self.doseAtIndex(doseData, zP, yP + 1, xP) * (1.0 - zF) * yF * (1.0 - xF) + \
-               self.doseAtIndex(doseData, zP, yP + 1, xP + 1) * (1.0 - zF) * yF * xF + \
-               self.doseAtIndex(doseData, zP + 1, yP, xP) * zF * (1.0 - yF) * (1.0 - xF) + \
-               self.doseAtIndex(doseData, zP + 1, yP, xP + 1) * zF * (1.0 - yF) * xF + \
-               self.doseAtIndex(doseData, zP + 1, yP + 1, xP) * zF * yF * (1.0 - xF) + \
-               self.doseAtIndex(doseData, zP + 1, yP + 1, xP + 1) * zF * yF * xF
+            self.doseAtIndex(doseData, zP, yP, xP + 1) * (1.0 - zF) * (1.0 - yF) * xF + \
+            self.doseAtIndex(doseData, zP, yP + 1, xP) * (1.0 - zF) * yF * (1.0 - xF) + \
+            self.doseAtIndex(doseData, zP, yP + 1, xP + 1) * (1.0 - zF) * yF * xF + \
+            self.doseAtIndex(doseData, zP + 1, yP, xP) * zF * (1.0 - yF) * (1.0 - xF) + \
+            self.doseAtIndex(doseData, zP + 1, yP, xP + 1) * zF * (1.0 - yF) * xF + \
+            self.doseAtIndex(doseData, zP + 1, yP + 1, xP) * zF * yF * (1.0 - xF) + \
+            self.doseAtIndex(doseData, zP + 1, yP + 1, xP + 1) * zF * yF * xF
 
         return dose
 
@@ -499,6 +500,7 @@ class parseWholePatient(object):
 
     # ----------------------------------------- #
 
+
 def plotCT(planTrialFile):
     """
     Display the CT in a 3 plane image view gui
@@ -508,6 +510,7 @@ def plotCT(planTrialFile):
     ctVoxSize = [ctHdr.z_pixdim, ctHdr.y_pixdim, ctHdr.x_pixdim]
 
     f1 = imView.slicesView(ctData, voxSize=ctVoxSize)
+
 
 class buildPatientPlan(object):
     pass
@@ -519,7 +522,7 @@ class DoseInvalidException(Exception):
 
 if __name__ == '__main__':
     workingPath = os.path.join(os.getenv('HOME'), 'PinnWork')
-    inputfolder = os.path.join(workingPath, 'Mount_0/')
+    inputfolder = os.path.join(workingPath, 'DCM_Pinn')
 
-    planObject = parseWholePatient(os.path.join(inputfolder,'Patient_28471'))
+    planObject = parseWholePatient(os.path.join(inputfolder, 'Patient_35995'))
     planObject.getPatientDict()

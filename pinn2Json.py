@@ -673,7 +673,7 @@ if __name__ == "__main__":
     #						help="Annonomize images by changing name to annonName.")
 
     workingPath = os.path.join(os.getenv('HOME'), 'PinnWork')
-    filename = os.path.join(workingPath, 'Mount_0/Patient_28471/Plan_0/plan.roi')
+    filename = os.path.join(workingPath, 'Mount_0/Patient_28471/ImageSet_0.ImageInfo')
     # filename = os.path.join(workingPath, 'test.roi')
 
     pinnObjList = pinn2Json().read(filename)

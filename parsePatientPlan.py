@@ -50,7 +50,7 @@ class parsePatientPlan(object):
                     logging.warning('this is Phantom for QA, skip!')
                     continue
                 # read CT image set of this plan
-                (imageSet['CTHeader'], imageSet['CTData']
+                (imageSet['CTHeader'], imageSet['CTInfo'], imageSet['CTData']
                  ) = self.readCT(imageSet.ImageName)
                 patientImageSetList.append(imageSet)
         self.patientBaseDict['imageSetListRawData'] = patientImageSetList
@@ -66,7 +66,8 @@ class parsePatientPlan(object):
                 else:
                     planDirName = 'Plan_' + (str)(plan.PlanID)
                     logging.info('Reading plan:%s ......', planDirName)
-                    plan['planData'] = self.readPlan(planDirName, plan.PrimaryCTImageSetID)
+                    plan['planData'] = self.readPlan(
+                        planDirName, plan.PrimaryCTImageSetID)
                 patientPlanList.append(plan)
         self.patientBaseDict['planListRawData'] = patientPlanList
 
@@ -77,6 +78,8 @@ class parsePatientPlan(object):
         imHdr = pinn2Json().read(
             os.path.join(self.sourceDir, (CTName + '.header')))
 
+        imInfo = pinn2Json().read(
+            os.path.join(self.sourceDir, (CTName + '.ImageInfo')))
         # Read the data from the file
         imData = np.fromfile(os.path.join(
             self.sourceDir, (CTName + '.img')), dtype='int16')
@@ -97,7 +100,7 @@ class parsePatientPlan(object):
             if imHdr.byte_order == 0:
                 imData = imData.byteswap(True)
 
-        return imHdr, imData
+        return imHdr, imInfo, imData
 
     def readPlan(self, planDirRefPath, planRefImageID):
         """
@@ -139,7 +142,8 @@ class parsePatientPlan(object):
 
         if os.path.isfile(os.path.join(planDirAbsPath, 'plan.roi')):
             logging.info('Reading ROIs, will taking long time, waiting..... ')
-            planDict['planROIsRawData'] = pinn2Json().read(os.path.join(planDirAbsPath, 'plan.roi'))
+            planDict['planROIsRawData'] = pinn2Json().read(
+                os.path.join(planDirAbsPath, 'plan.roi'))
             #self.getContours(planDict['rois'], contourShiftVector)
 
         # if os.path.isfile(os.path.join(planDirAbsPath, 'plan.Pinnacle.Machines')):
