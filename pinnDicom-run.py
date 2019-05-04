@@ -2814,27 +2814,11 @@ class dvhdata(DVH):
     # def OAR_constans(self,abs_dose):
     #     self.cumulative
     #     self.
-
-
-
-####################################################################################################################################################
-####################################################################################################################################################
-if __name__ == "__main__":
-    #arg1,arg2,arg3 = sys.argv[1:]
-    # inputfolder = '/home/peter/PinnWork/NPC/'
-    workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath,'Accuracy/')
-    outputfolder = os.path.join(workingPath,'dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath,'dvhs_ESO_496285/')
-
-    #log file
-    resultData = os.path.join(workingPath,time.asctime() + 'dvhdata.csv')
-
+def compareTPSandCalc(inputfolder,outputfolder,tpsDVHsDir,resultData):
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
-
             patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
             print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
@@ -3166,6 +3150,67 @@ if __name__ == "__main__":
             Rd = None
     #
     # dvh_cal.compare(dvh_tps)
+
+def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
+    fileobj = open(resultData,'w+')
+    pinnObject = pinn2Json()
+    patientDir = os.listdir(inputfolder)
+    for patient in patientDir:
+        if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
+            patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
+            print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
+            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+            structs = Rs.GetStructures()
+            for (key, Roi) in structs.items():
+                print('============================')
+                print(key, Roi['name'])
+                if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
+                    continue
+                if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
+                    continue
+                elif Roi['type'] == 'ORGAN':
+                    logging.info('getdvH')
+                    dvh_tps = getTPSDVH(
+                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
+                        #                          interpolation_segments_between_planes=2, use_structure_extents=True)
+                        # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps and dvh_cal:
+                        logging.info('abs')
+
+                        dvh_cal_volume = dvh_cal.volume
+                        dvh_tps_volume = dvh_tps.volume
+                        values =dvh_cal.name + ',' +  str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str((dvh_cal_volume-dvh_tps_volume) * 100/dvh_tps_volume) + '\n'
+                        fileobj.write(values)
+
+                        dvhdata_cal = None
+                        dvhdata_tps = None
+                    dvh_tps = None
+                    dvh_cal = None
+
+            Rs = None
+            Rd = None
+    fileobj.close()
+
+
+####################################################################################################################################################
+####################################################################################################################################################
+if __name__ == "__main__":
+    #arg1,arg2,arg3 = sys.argv[1:]
+    # inputfolder = '/home/peter/PinnWork/NPC/'
+    workingPath = '/home/peter/PinnWork'
+    inputfolder = os.path.join(workingPath,'Accuracy/')
+    outputfolder = os.path.join(workingPath,'dicom_pool/')
+    tpsDVHsDir = os.path.join(workingPath,'dvhs_ESO_496285/')
+
+    #log file
+    resultData = os.path.join(workingPath,time.asctime() + 'dvhdata.csv')
+
+    compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
+
+
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
     #     readpatient(dir,inputfolder,outputfolder)
