@@ -109,8 +109,9 @@ class pinn2Json(object):
         pinnFileText = re.sub(r'\n\n', '', pinnFileText)
 
         # remove roi_name like : name : 6000 (Trial_1)
-        pinnFileText = re.sub("name:\s(\d+)\s\((.*)\)",
-                              'name:ring', pinnFileText)
+        pinnFileText = re.sub("\((.*)\)", '', pinnFileText)
+        # pinnFileText = re.sub("name:\s(\d+)\s\((.*)\)",
+        #                       'name:ring', pinnFileText)
 
         return pinnFileText
 

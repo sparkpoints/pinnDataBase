@@ -13,6 +13,8 @@ from pinn2Json import pinn2Json
 from parsePatientPlan import parsePatientPlan
 import pydicom
 from pydicom import Dataset, Sequence, FileDataset
+from dicompylercore import dicomparser, dvhcalc
+from dicompylercore.dvh import DVH
 
 
 class buildPatientPlan(object):
@@ -164,7 +166,7 @@ class buildPatientPlan(object):
 
                 # [3006,0042]
                 ds.ROIContourSequence[i - 1].ContourSequence[j -
-                                                             1].ContourGeometricType = ""
+                                                             1].ContourGeometricType = "CLOSED_PLANAR"
                 ds.ROIContourSequence[i - 1].ContourSequence[j -
                                                              1].NumberOfContourPoints = data.num_points
                 # get each ROI_Curves_Points, using data.Points
@@ -197,9 +199,9 @@ class buildPatientPlan(object):
         # structds.save_as("structfilepath")
         # print("Structure file being saved\n")
         ds.save_as(os.getenv('HOME') + '/PinnWork/' + structfilename)
-
-        dcmds = pydicom.dcmread(ds)
-        print(dcmds)
+        #
+        # dcmds = pydicom.dcmread(ds)
+        # print(dcmds)
         return ds
 
     def modifyPatientInfo(self, ds, rawData):
@@ -284,10 +286,20 @@ class buildPatientPlan(object):
                                                 refImageInfo,
                                                 setupPosition,
                                                 roiShiftVector)
+                    rsObject = dicomparser.DicomParser(RS_ds)
+                    structs = rsObject.GetStructures()
+                    for (key, Roi) in structs.items():
+                        # print('============================')
 
-                if 'planTrialsRawData' in plan.planData:
-                    trialData = self.getTrialData(
-                        plan.planData.planTrialsRawData)
+                        planes = rsObject.GetStructureCoordinates(key)
+                        thickness = rsObject.CalculatePlaneThickness(planes)
+                        volume = rsObject.CalculateStructureVolume(planes,thickness)
+                        logging.info('key=%d,name=%s,volume=%s', key, Roi['name'],str(volume))
+
+                print('end')
+                # if 'planTrialsRawData' in plan.planData:
+                #     trialData = self.getTrialData(
+                #         plan.planData.planTrialsRawData)
 
     def getTrialData(self, planTrialData):
         if 'trialListRawData' in planTrialData:
@@ -663,9 +675,10 @@ class DoseInvalidException(Exception):
 
 if __name__ == '__main__':
     workingPath = os.path.join(os.getenv('HOME'), 'PinnWork')
-    inputfolder = os.path.join(workingPath, 'DCM_Pinn')
-
-    planData = parsePatientPlan(os.path.join(inputfolder, 'Patient_35995'))
+    # inputfolder = os.path.join(workingPath, 'DCM_Pinn')
+    #
+    # planData = parsePatientPlan(os.path.join(inputfolder, 'Patient_35995'))
+    planData = parsePatientPlan(os.path.join(workingPath, 'Patient_36089'))
     planData.getPatientDict()
     planData.printPatientDict()
 
