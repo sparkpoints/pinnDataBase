@@ -743,7 +743,7 @@ def createimagefiles():
                 posrefind = ds.PositionReferenceIndicator
                 print("Creating image: " + Outputf + "%s/CT.%s.dcm" %
                       (patientfolder, instuid))
-                ds.save_as(Outputf + "%s/CT.%s.dcm" % (patientfolder, instuid))
+                # ds.save_as(Outputf + "%s/CT.%s.dcm" % (patientfolder, instuid))
                 curframe = curframe + 1
 ####################################################################################################################################################
 ####################################################################################################################################################
@@ -2550,17 +2550,17 @@ def getTPSDVH(basedir, mrn, roiName):
     pj = pinn2Json()
     files = os.listdir(basedir)
     for file in files:
-        print(file)
-        filedata = file.replace('.dvh', '').split('-')
-        print("nrm:",mrn)
-        print("mrn=",filedata[0])
-        print("roi:", roiName)
-        print("roi=",filedata[-1])
+        # print(file)
+        filedata = file.replace('.txt', '').split('-')
+        # print("nrm:",mrn)
+        # print("mrn=",filedata[0])
+        # print("roi:", roiName)
+        # print("roi=",filedata[-1])
         if mrn == filedata[0] and roiName == filedata[-1]:
             dvh_export = pj.read(os.path.join(basedir, file))
             # print(dvh_export.Points)
             filename = os.path.basename(file)
-            filename = filename.replace('.dvh', '').split('-')
+            filename = filename.replace('.txt', '').split('-')
             data_array = np.array(dvh_export.Points)
             counts = data_array[1:, 1]
             bins = data_array[1:, 0] / 100
@@ -2569,7 +2569,7 @@ def getTPSDVH(basedir, mrn, roiName):
             dvh_data.color = Colors[0]
             dvh_data.name = filename[3]
             dvh_data.notes = filename[0]
-            print('dvh_name:',dvh_data.name)
+            # print('dvh_name:',dvh_data.name)
             return dvh_data.cumulative
         # else:
         #     return None
@@ -2849,8 +2849,10 @@ def compareTPSandCalc(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
                         # print("binsdiffOfAbs:%f", rms)
 
-                        dvh_cal = dvh_cal.relative_volume
-                        dvh_tps = dvh_tps.relative_volume
+                        #dvh_cal = dvh_cal.relative_volume()
+                        logging.info(dvh_cal.volume)
+                        #dvh_tps = dvh_tps.relative_volume()
+                        logging.info(dvh_tps.volume)
                         #
                         # h1 = dvh_cal.counts
                         # h2 = dvh_tps.counts
@@ -2986,8 +2988,8 @@ def compareTPSandCalc(inputfolder,outputfolder,tpsDVHsDir,resultData):
                             dvh_cal = None
                             continue
 
-                        dvh_cal = dvh_cal.relative_volume
-                        dvh_tps = dvh_tps.relative_volume
+                        # dvh_cal = dvh_cal.relative_volume()
+                        # dvh_tps = dvh_tps.relative_volume()
                         # print('relative')
                         dvhdata_cal = dvhdata(dvh_cal)
                         dvhdata_tps = dvhdata(dvh_tps)
@@ -3162,14 +3164,16 @@ def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
             for (key, Roi) in structs.items():
-                print('============================')
-                print(key, Roi['name'])
+                # print('============================')
+                logging.info("key=%d,name=%s",key, Roi['name'])
                 if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
                     continue
                 if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
                     continue
                 elif Roi['type'] == 'ORGAN':
-                    logging.info('getdvH')
+                    dvh_tps = None
+                    dvh_cal = None
+                    # logging.info('getdvH')
                     dvh_tps = getTPSDVH(
                         tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
                     if dvh_tps:
@@ -3178,18 +3182,11 @@ def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         #                          interpolation_segments_between_planes=2, use_structure_extents=True)
                         # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
                     if dvh_tps and dvh_cal:
-                        logging.info('abs')
-
                         dvh_cal_volume = dvh_cal.volume
                         dvh_tps_volume = dvh_tps.volume
                         values =dvh_cal.name + ',' +  str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str((dvh_cal_volume-dvh_tps_volume) * 100/dvh_tps_volume) + '\n'
                         fileobj.write(values)
-
-                        dvhdata_cal = None
-                        dvhdata_tps = None
-                    dvh_tps = None
-                    dvh_cal = None
-
+                        logging.info(values)
             Rs = None
             Rd = None
     fileobj.close()
@@ -3201,14 +3198,15 @@ if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
     # inputfolder = '/home/peter/PinnWork/NPC/'
     workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath,'Accuracy/')
-    outputfolder = os.path.join(workingPath,'dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath,'dvhs_ESO_496285/')
+    inputfolder = os.path.join(workingPath,'Accuracy','Mount_0/')
+    outputfolder = os.path.join(workingPath,'export_dicom_pool/')
+    tpsDVHsDir = os.path.join(workingPath,'Accuracy','dvhs_P38114/')
 
     #log file
-    resultData = os.path.join(workingPath,time.asctime() + 'dvhdata.csv')
+    resultData = os.path.join(workingPath,'runlogger', time.strftime("%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
-    compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
+    # compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
+    compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
 
     # dirs = os.listdir(inputfolder)
