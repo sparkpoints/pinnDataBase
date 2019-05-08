@@ -15,6 +15,7 @@ import pydicom
 from pydicom import Dataset, Sequence, FileDataset
 from dicompylercore import dicomparser, dvhcalc
 from dicompylercore.dvh import DVH
+from shapely.geometry import Polygon
 
 
 class buildPatientPlan(object):
@@ -286,20 +287,86 @@ class buildPatientPlan(object):
                                                 refImageInfo,
                                                 setupPosition,
                                                 roiShiftVector)
-                    rsObject = dicomparser.DicomParser(RS_ds)
-                    structs = rsObject.GetStructures()
-                    for (key, Roi) in structs.items():
-                        # print('============================')
-
-                        planes = rsObject.GetStructureCoordinates(key)
-                        thickness = rsObject.CalculatePlaneThickness(planes)
-                        volume = rsObject.CalculateStructureVolume(planes,thickness)
-                        logging.info('key=%d,name=%s,volume=%s', key, Roi['name'],str(volume))
+                    self.getROIsVolumes(RS_ds)
+                    logging.info('=========================')
+                    tps_ds = pydicom.read_file('/home/peter/PinnWork/Accuracy/DCM_38169/RS.dcm')
+                    self.getROIsVolumes(tps_ds)
 
                 print('end')
                 # if 'planTrialsRawData' in plan.planData:
                 #     trialData = self.getTrialData(
                 #         plan.planData.planTrialsRawData)
+    def getROIsVolumes(self,RS_ds):
+        rsObject = dicomparser.DicomParser(RS_ds)
+        structs = rsObject.GetStructures()
+        for (key, Roi) in structs.items():
+            if Roi['name'] == 'Cord':
+                planes = rsObject.GetStructureCoordinates(key)
+                thickness = rsObject.CalculatePlaneThickness(planes)
+                # volume = rsObject.CalculateStructureVolume(planes,thickness)
+                volume = self.CalculateStructureVolume(planes, thickness)
+                logging.info('key=%d,name=%s,volume=%s', key, Roi['name'], str(volume))
+
+    def CalculateStructureVolume(self, coords, thickness):
+        """Calculates the volume of the given structure.
+
+        Parameters
+        ----------
+        coords : dict
+            Coordinates of each plane of the structure
+        thickness : float
+            Thickness of the structure
+        """
+
+        # if not shapely_available:
+        #     print("Shapely library not available." +
+        #           " Please install to calculate.")
+        #     return 0
+
+        class Within(Polygon):
+            def __init__(self, o):
+                self.o = o
+
+            def __lt__(self, other):
+                return self.o.within(other.o)
+
+        s = 0
+        for i, z in enumerate(sorted(coords.items())):
+            # Skip contour data if it is not CLOSED_PLANAR
+            logging.info(z[0])
+            if z[1][0]['type'] != 'CLOSED_PLANAR':
+                continue
+            polygons = []
+            contours = [[x[0:2] for x in c['data']] for c in z[1]]
+            for contour in contours:
+                p = Polygon(contour)
+                polygons.append(p)
+            # Sort polygons according whether they are contained
+            # by the previous polygon
+            if len(polygons) > 1:
+                ordered_polygons = sorted(polygons, key=Within, reverse=True)
+            else:
+                ordered_polygons = polygons
+            for ip, p in enumerate(ordered_polygons):
+                pa = 0
+                if ((i == 0) or (i == len(coords.items()) - 1)) and \
+                        not (len(coords.items()) == 1):
+                    pa += (p.area // 2)
+                else:
+                    pa += p.area
+                # Subtract the volume if polygon is contained within the parent
+                # and is not the parent itself
+                if p.within(ordered_polygons[0]) and \
+                        (p != ordered_polygons[0]):
+                    s -= pa
+                else:
+                    s += pa
+                logging.info(pa)
+        vol = s * thickness / 1000
+        logging.info(thickness)
+        logging.info('Total_volume')
+        logging.info(vol)
+        return vol
 
     def getTrialData(self, planTrialData):
         if 'trialListRawData' in planTrialData:
@@ -678,7 +745,7 @@ if __name__ == '__main__':
     # inputfolder = os.path.join(workingPath, 'DCM_Pinn')
     #
     # planData = parsePatientPlan(os.path.join(inputfolder, 'Patient_35995'))
-    planData = parsePatientPlan(os.path.join(workingPath, 'Patient_36089'))
+    planData = parsePatientPlan(os.path.join(workingPath, 'Accuracy/Mount_496285/','Patient_38169'))
     planData.getPatientDict()
     planData.printPatientDict()
 

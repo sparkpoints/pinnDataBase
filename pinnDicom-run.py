@@ -3125,8 +3125,8 @@ if __name__ == "__main__":
     #log file
     resultData = os.path.join(workingPath,'runlogger', time.strftime("%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
-    # compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
-    compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
+    # compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
 
     # dirs = os.listdir(inputfolder)
