@@ -2626,7 +2626,7 @@ class dvhdata(DVH):
         def savefmtcmp(attr, units, ref=self, comp=dvh):
             """Generate arguments for string formatting.
             """
-            if attr =='volume':
+            if attr == 'volume':
                 val = ref.__getattribute__(attr)
                 cmpval = comp.__getattribute__(attr)
             elif attr in [ 'max', 'min', 'mean']:
@@ -2836,7 +2836,7 @@ def compareTPSandCalc(inputfolder,outputfolder,tpsDVHsDir,resultData):
                     dvh_tps = getTPSDVH(tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
                     if dvh_tps:
                         # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 8),
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
                                                   interpolation_segments_between_planes=2, use_structure_extents=True)
 
                     if dvh_tps and dvh_cal:
