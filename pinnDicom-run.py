@@ -1791,6 +1791,8 @@ def readtrial(ds, planfolder, plannumber):
             prescripdose = float(re.findall(r"[-+]?\d*\.\d+|\d+", line)[0])
             normdose = float(re.findall(
                 r"[-+]?\d*\.\d+|\d+", all_lines[linenum + 15])[0])
+            mlcFactor = float(re.findall(
+                r"[-+]?\d*\.\d+|\d+", all_lines[linenum + 17])[0])
             if normdose == 0:
                 beammu = 0
                 print("Beam MU: " + str(beammu))
@@ -1802,7 +1804,7 @@ def readtrial(ds, planfolder, plannumber):
                                                                1].BeamDose = float(re.findall(r"[-+]?\d*\.\d+|\d+", line)[0]) / 100
             if beamenergies[beamcount - 1] == '6':
                 beammu = float(re.findall(
-                    r"[-+]?\d*\.\d+|\d+", line)[0]) / (normdose * PDD6MV)
+                    r"[-+]?\d*\.\d+|\d+", line)[0]) / (normdose * mlcFactor * PDD6MV)
                 print("Beam MU: " + str(beammu))
                 ds.FractionGroupSequence[0].ReferencedBeamSequence[beamcount -
                                                                    1].BeamMeterset = beammu
@@ -2835,9 +2837,9 @@ def compareTPSandCalc(inputfolder,outputfolder,tpsDVHsDir,resultData):
                     logging.info('getdvH')
                     dvh_tps = getTPSDVH(tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
                     if dvh_tps:
-                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
-                                                  interpolation_segments_between_planes=2, use_structure_extents=True)
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
+                        #                           interpolation_segments_between_planes=2, use_structure_extents=True)
 
                     if dvh_tps and dvh_cal:
                         logging.info('abs')
@@ -3125,8 +3127,8 @@ if __name__ == "__main__":
     #log file
     resultData = os.path.join(workingPath,'runlogger', time.strftime("%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
-    compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
-    # compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    #compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
+    compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
 
     # dirs = os.listdir(inputfolder)
