@@ -2627,16 +2627,16 @@ class dvhdata(DVH):
             """Generate arguments for string formatting.
             """
             if attr in ['volume', 'max', 'min', 'mean']:
-                val = ref.__getattribute__(attr) * 100
-                cmpval = comp.__getattribute__(attr) * 100
+                val = ref.__getattribute__(attr)
+                cmpval = comp.__getattribute__(attr)
             else:
-                val = ref.statistic(attr).value * 100
-                cmpval = comp.statistic(attr).value * 100
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
             # strValue = str(comp.__getattribute__('notes') + ',' + comp.__getattribute__(
             #     'name') + ',' + attr.capitalize() + "," + str(val) + "," + units +
             #                "," + str(cmpval) + "," + units + "," + str(
             #     0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + "," + units + '\n')
-            strValue = str(comp.__getattribute__('notes') + ',' + comp.__getattribute__(
+            strValue = str(comp.__getattribute__(
                 'name') + ',' + attr.capitalize() + "," + str(val) +
                 "," + str(cmpval) + "," + str(
                 0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + '\n')
@@ -2819,7 +2819,7 @@ def getTPSDCM(tpsDVHHome, patienMRN):
     Rd = None
     dirList = os.listdir(tpsDVHHome)
     for dvh in dirList:
-        if os.basename(dvh) == patientMRN:
+        if dvh == patienMRN:
             for dcm in os.listdir(os.path.join(tpsDVHHome, dvh)):
                 logging.info(dcm)
                 if 'RS' in dcm:
@@ -2854,20 +2854,23 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                              'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA']
             for (key, Roi) in structs.items():
                 # print('============================')
-                logging.info("key=%d,ROI=%d", key, Roi['name'])
+                logging.info("key=%d,ROI=%s", key, Roi['name'])
                 dvhCalc = None
                 dvhTps = None
-                if Roi['name'] in targetStructs:
+                # if Roi['name'].upper() in targetStructs:
+                if 'Mark' in Roi['name'] or 'point'in Roi['name'] or 'Iso' in Roi['name']:
+                    continue
+                else:
                     dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
 
                     for (item, contours) in structs_tps.items():
-                        if contours['name'] == Roi['name']:
+                        if contours['name'].upper() == Roi['name'].upper():
                             dvhTps = dvhcalc.get_dvh(
                                 Rs_tps.ds, Rd_tps.ds, item)
                     if dvhCalc and dvhTps:
                         dvhdata_cal = dvhdata(dvhCalc)
                         dvhdata_tps = dvhdata(dvhTps)
-                        dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
+                        # dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
                     else:
                         logging.info('no validat data')
@@ -2921,9 +2924,9 @@ if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
     # inputfolder = '/home/peter/PinnWork/NPC/'
     workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_0/')
+    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_496285/')
     outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvhs_P38114/')
+    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvh_tps_dcm/')
 
     # log file
     resultData = os.path.join(workingPath, 'runlogger', time.strftime(
