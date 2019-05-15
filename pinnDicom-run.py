@@ -2589,8 +2589,28 @@ class dvhdata(DVH):
         self.color = dvh.color
         self.notes = dvh.notes
         # DVH.__init__(self,counts,bins,dvh_type,dose_units,volume_units,rx_dose,name,color,notes)
+    def getEUDs(self,a_value):
+        if self.dose_units == '%' and self.volume_units != '%':
+            return 0
+        # if len(self.bins) != len(self.counts):
+        #     return 0
 
-    def getDifferences(self, dvh, result):
+        prevolume = 0
+        vol_diff = 0
+        sumdata = 0
+        for index,volume in enumerate(self.counts,0):
+            if index == 0:
+                prevolume = volume
+            else:
+                vol_diff = abs(volume-prevolume)/100
+                dose = self.bins[index+1]
+                sumdata += vol_diff * pow(dose,a_value)
+        gedu = pow(sumdata,1/a_value)
+        return gedu
+
+
+
+    def getDifferences(self, dvh, mrn, result):
         """compare dvh with another dvh, compute the difffereces"""
         fileObj = open(result, 'a')
 
@@ -2615,15 +2635,15 @@ class dvhdata(DVH):
                 use: cGy for difference
             """
             if attr in ['volume', 'max', 'min', 'mean']:
-                val = ref.__getattribute__(attr) * 100
-                cmpval = comp.__getattribute__(attr) * 100
+                val = ref.__getattribute__(attr)
+                cmpval = comp.__getattribute__(attr)
             else:
-                val = ref.statistic(attr).value * 100
-                cmpval = comp.statistic(attr).value * 100
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
             return attr.capitalize() + ":", val, units, cmpval, units, \
                 0 if not val else ((cmpval - val) / val) * 100, cmpval - val
 
-        def savefmtcmp(attr, units, ref=self, comp=dvh):
+        def savefmtcmp(mrn, attr, units, ref=self, comp=dvh):
             """Generate arguments for string formatting.
             """
             if attr in ['volume', 'max', 'min', 'mean']:
@@ -2636,7 +2656,7 @@ class dvhdata(DVH):
             #     'name') + ',' + attr.capitalize() + "," + str(val) + "," + units +
             #                "," + str(cmpval) + "," + units + "," + str(
             #     0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + "," + units + '\n')
-            strValue = str(comp.__getattribute__(
+            strValue = str(mrn + ',' + comp.__getattribute__(
                 'name') + ',' + attr.capitalize() + "," + str(val) +
                 "," + str(cmpval) + "," + str(
                 0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + '\n')
@@ -2652,6 +2672,11 @@ class dvhdata(DVH):
             "abs volume: {}".format(self.volume_units)
         print("DVH Type:  {}, {}, {}".format(self.dvh_type, dose, vol))
         fmtstr = "{:11} {:12.2f} {:3}{:14.2f} {:3}{:+14.2f} % {:+14.2f}"
+
+        #small volume cause unpredictable problems
+        if self.volume < 0.01:
+            logging.info('Too small volume')
+            return
         print(fmtstr.format(*fmtcmp('volume', self.volume_units)))
         print(fmtstr.format(*fmtcmp('max', self.dose_units)))
         print(fmtstr.format(*fmtcmp('min', self.dose_units)))
@@ -2676,26 +2701,26 @@ class dvhdata(DVH):
                 *fmtcmp('V5', self.dose_units,
                         self.relative_dose(), dvh.relative_dose())))
 
-            fileObj.write((savefmtcmp('V100', self.dose_units,
+            fileObj.write((savefmtcmp(mrn,'V100', self.dose_units,
                                       self.relative_dose(), dvh.relative_dose())))
-            fileObj.write((savefmtcmp('V95', self.dose_units,
+            fileObj.write((savefmtcmp(mrn,'V95', self.dose_units,
                                       self.relative_dose(), dvh.relative_dose())))
             fileObj.write(
-                (savefmtcmp('V5', self.dose_units, self.relative_dose(), dvh.relative_dose())))
+                (savefmtcmp(mrn,'V5', self.dose_units, self.relative_dose(), dvh.relative_dose())))
         print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
         # print(self.volume_constraint(20, 'Gy'))
         # print(dvh.volume_constraint(20, 'Gy'))
 
-        fileObj.write(savefmtcmp('volume', self.dose_units))
-        fileObj.write(savefmtcmp('max', self.dose_units))
-        fileObj.write(savefmtcmp('min', self.dose_units))
-        fileObj.write(savefmtcmp('mean', self.dose_units))
-        # fileObj.write(savefmtcmp('D100', self.dose_units))
-        fileObj.write(savefmtcmp('D98', self.dose_units))
-        fileObj.write(savefmtcmp('D95', self.dose_units))
-        fileObj.write(savefmtcmp('D90', self.dose_units))
-        fileObj.write(savefmtcmp('D50', self.dose_units))
-        fileObj.write(savefmtcmp('D2cc', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'volume', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'max', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'min', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'mean', self.dose_units))
+        # fileObj.write(savefmtcmp(mrn,'D100', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D98', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D95', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D90', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D50', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D2cc', self.dose_units))
         fileObj.close()
 
         # self.plot()
@@ -2834,6 +2859,7 @@ def getTPSDCM(tpsDVHHome, patienMRN):
 
 
 def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
+    # fileObj = open(result, 'a')
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
@@ -2842,13 +2868,24 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                 os.path.join(inputfolder, patient, 'Patient'))
             print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
                   (patientInfo.FirstName + patientInfo.LastName))
-            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
-            structs = Rs.GetStructures()
+            # calc from raw data
+            # (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+            # structs = Rs.GetStructures()
 
             # dcm_from_tps
             (Rs_tps, Rd_tps) = getTPSDCM(
                 tpsDVHsDir, patientInfo.MedicalRecordNumber)
             structs_tps = Rs_tps.GetStructures()
+
+            dvhTps = dvhcalc.get_dvh(Rs_tps.ds, Rd_tps.ds, 3)
+            dvhTps = dvhTps.relative_volume
+            dvhTps = dvhTps.absolute_dose()
+
+            dvhdata_tps = dvhdata(dvhTps)
+            logging.info(dvhdata_tps.getEUDs(1))
+
+
+            # fileObj.write(patientInfo.MedicalRecordNumber)
 
             targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
                              'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA']
@@ -2871,7 +2908,7 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                         dvhdata_cal = dvhdata(dvhCalc)
                         dvhdata_tps = dvhdata(dvhTps)
                         # dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
-                        dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+                        dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
                     else:
                         logging.info('no validat data')
 
