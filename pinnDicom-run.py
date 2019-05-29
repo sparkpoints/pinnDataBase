@@ -1011,7 +1011,7 @@ def initds(ds):
 # function to read in patient info from Patient text file
 ####################################################################################################################################################
 def readpatientinfo(ds):
-    print ("Reading patient information\n")
+    print("Reading patient information\n")
     mname = ""
     flag_first = True
     flag_time = True
@@ -1107,7 +1107,11 @@ def readpatientinfo(ds):
                 planids.append(re.findall(r"[-+]?\d*\.\d+|\d+", line)[0])
             if "    StudyID = " in line and flag_stid:
                 sid = re.findall(r'"([^"]*)"', line)[0]
+<<<<<<< HEAD
                 # print ("Study id: ", sid)
+=======
+                print("Study id: ", sid)
+>>>>>>> dcm
                 ds.StudyID = sid
                 flag_stid = False
             if "WriteTimeStamp = " in line and flag_time:
@@ -2589,8 +2593,28 @@ class dvhdata(DVH):
         self.color = dvh.color
         self.notes = dvh.notes
         # DVH.__init__(self,counts,bins,dvh_type,dose_units,volume_units,rx_dose,name,color,notes)
+    def getEUDs(self,a_value):
+        if self.dose_units == '%' and self.volume_units != '%':
+            return 0
+        # if len(self.bins) != len(self.counts):
+        #     return 0
 
-    def getDifferences(self, dvh, result):
+        prevolume = 0
+        vol_diff = 0
+        sumdata = 0
+        for index,volume in enumerate(self.counts,0):
+            if index == 0:
+                prevolume = volume
+            else:
+                vol_diff = abs(volume-prevolume)/100
+                dose = self.bins[index+1]
+                sumdata += vol_diff * pow(dose,a_value)
+        gedu = pow(sumdata,1/a_value)
+        return gedu
+
+
+
+    def getDifferences(self, dvh, mrn, result):
         """compare dvh with another dvh, compute the difffereces"""
         fileObj = open(result, 'a')
 
@@ -2615,33 +2639,39 @@ class dvhdata(DVH):
                 use: cGy for difference
             """
             if attr in ['volume', 'max', 'min', 'mean']:
-                val = ref.__getattribute__(attr)* 100
-                cmpval = comp.__getattribute__(attr) * 100
+                val = ref.__getattribute__(attr)
+                cmpval = comp.__getattribute__(attr)
             else:
-                val = ref.statistic(attr).value * 100
-                cmpval = comp.statistic(attr).value * 100
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
             return attr.capitalize() + ":", val, units, cmpval, units, \
-                   0 if not val else ((cmpval - val) / val) * 100, cmpval - val
+                0 if not val else ((cmpval - val) / val) * 100, cmpval - val
 
-        def savefmtcmp(attr, units, ref=self, comp=dvh):
+        def savefmtcmp(mrn, attr, units, ref=self, comp=dvh):
             """Generate arguments for string formatting.
             """
+<<<<<<< HEAD
             if attr == 'volume':
                 val = ref.__getattribute__(attr)
                 cmpval = comp.__getattribute__(attr)
             elif attr in [ 'max', 'min', 'mean']:
                 val = ref.__getattribute__(attr)*100
                 cmpval = comp.__getattribute__(attr) * 100
+=======
+            if attr in ['volume', 'max', 'min', 'mean']:
+                val = ref.__getattribute__(attr)
+                cmpval = comp.__getattribute__(attr)
+>>>>>>> dcm
             else:
-                val = ref.statistic(attr).value * 100
-                cmpval = comp.statistic(attr).value * 100
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
             # strValue = str(comp.__getattribute__('notes') + ',' + comp.__getattribute__(
             #     'name') + ',' + attr.capitalize() + "," + str(val) + "," + units +
             #                "," + str(cmpval) + "," + units + "," + str(
             #     0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + "," + units + '\n')
-            strValue = str(comp.__getattribute__('notes') + ',' + comp.__getattribute__(
+            strValue = str(mrn + ',' + comp.__getattribute__(
                 'name') + ',' + attr.capitalize() + "," + str(val) +
-                           "," + str(cmpval) + "," + str(
+                "," + str(cmpval) + "," + str(
                 0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + '\n')
 
             return strValue
@@ -2655,6 +2685,11 @@ class dvhdata(DVH):
             "abs volume: {}".format(self.volume_units)
         print("DVH Type:  {}, {}, {}".format(self.dvh_type, dose, vol))
         fmtstr = "{:11} {:12.2f} {:3}{:14.2f} {:3}{:+14.2f} % {:+14.2f}"
+
+        #small volume cause unpredictable problems
+        if self.volume < 0.01:
+            logging.info('Too small volume')
+            return
         print(fmtstr.format(*fmtcmp('volume', self.volume_units)))
         print(fmtstr.format(*fmtcmp('max', self.dose_units)))
         print(fmtstr.format(*fmtcmp('min', self.dose_units)))
@@ -2679,33 +2714,30 @@ class dvhdata(DVH):
                 *fmtcmp('V5', self.dose_units,
                         self.relative_dose(), dvh.relative_dose())))
 
-            fileObj.write((savefmtcmp('V100', self.dose_units,
+            fileObj.write((savefmtcmp(mrn,'V100', self.dose_units,
                                       self.relative_dose(), dvh.relative_dose())))
-            fileObj.write((savefmtcmp('V95', self.dose_units,
+            fileObj.write((savefmtcmp(mrn,'V95', self.dose_units,
                                       self.relative_dose(), dvh.relative_dose())))
             fileObj.write(
-                (savefmtcmp('V5', self.dose_units, self.relative_dose(), dvh.relative_dose())))
+                (savefmtcmp(mrn,'V5', self.dose_units, self.relative_dose(), dvh.relative_dose())))
         print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
         # print(self.volume_constraint(20, 'Gy'))
         # print(dvh.volume_constraint(20, 'Gy'))
 
-
-        fileObj.write(savefmtcmp('volume', self.dose_units))
-        fileObj.write(savefmtcmp('max', self.dose_units))
-        fileObj.write(savefmtcmp('min', self.dose_units))
-        fileObj.write(savefmtcmp('mean', self.dose_units))
-        # fileObj.write(savefmtcmp('D100', self.dose_units))
-        fileObj.write(savefmtcmp('D98', self.dose_units))
-        fileObj.write(savefmtcmp('D95', self.dose_units))
-        fileObj.write(savefmtcmp('D90', self.dose_units))
-        fileObj.write(savefmtcmp('D50', self.dose_units))
-        fileObj.write(savefmtcmp('D2cc', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'volume', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'max', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'min', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'mean', self.dose_units))
+        # fileObj.write(savefmtcmp(mrn,'D100', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D98', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D95', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D90', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D50', self.dose_units))
+        fileObj.write(savefmtcmp(mrn,'D2cc', self.dose_units))
         fileObj.close()
 
         # self.plot()
         # dvh.plot()
-
-
 
     def compare(self, dvh):
         """Compare the DVH properties with another DVH.
@@ -2746,7 +2778,7 @@ class dvhdata(DVH):
                 val = ref.statistic(attr).value
                 cmpval = comp.statistic(attr).value
             return attr.capitalize() + ":", val, units, cmpval, units, \
-                   0 if not val else ((cmpval - val) / val) * 100, cmpval - val
+                0 if not val else ((cmpval - val) / val) * 100, cmpval - val
 
         print("{:11} {:>14} {:>17} {:>17} {:>14}".format(
             'Structure:', self.name, dvh.name, 'Rel Diff', 'Abs diff'))
@@ -2802,35 +2834,91 @@ class dvhdata(DVH):
             plt.show()
         return self
 
-    def cal_nrmsd(self, dvh, result):
+    def cal_nrmsd(self, dvh, MRN, result):
 
         fileObj = open(result, 'a')
 
-        h1 = self.bins
-        h2 = dvh.bins
+        h1 = self.counts[::10]/100
+        h2 = dvh.counts[::10]/100
 
-        rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
-        value = dvh.notes + ',' + dvh.name + ',' + str(rms) + '\n'
+        logging.info(len(h1))
+
+        rms = np.sqrt(reduce(operator.add, map(
+            lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+        value = MRN + ',' + dvh.name + ',' + 'NRMSD,'+ str(rms) + '\n'
         fileObj.write(value)
         fileObj.close()
+<<<<<<< HEAD
         logging.info(rms)
 
 def compareTPSandCalc(inputfolder,outputfolder,tpsDVHsDir,resultData):
+=======
+        print(rms)
+    # def OAR_constans(self,abs_dose):
+    #     self.cumulative
+    #     self.
+
+
+def getTPSDCM(tpsDVHHome, patienMRN):
+    Rs = None
+    Rd = None
+    dirList = os.listdir(tpsDVHHome)
+    for dvh in dirList:
+        if dvh == patienMRN:
+            for dcm in os.listdir(os.path.join(tpsDVHHome, dvh)):
+                logging.info(dcm)
+                if 'RS' in dcm:
+                    Rs = pydicom.read_file(os.path.join(tpsDVHHome, dvh, dcm))
+                    Rs = dicomparser.DicomParser(Rs)
+                if 'RD' in dcm:
+                    Rd = pydicom.read_file(os.path.join(tpsDVHHome, dvh, dcm))
+                    Rd = dicomparser.DicomParser(Rd)
+        if Rs and Rd:
+            break
+    return Rs, Rd
+
+
+def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
+    # fileObj = open(result, 'a')
+>>>>>>> dcm
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
-            patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
-            print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
+            patientInfo = pinnObject.read(
+                os.path.join(inputfolder, patient, 'Patient'))
+            print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
+                  (patientInfo.FirstName + patientInfo.LastName))
+            # calc from raw data
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
+
+            # dcm_from_tps
+            (Rs_tps, Rd_tps) = getTPSDCM(
+                tpsDVHsDir, patientInfo.MedicalRecordNumber)
+            structs_tps = Rs_tps.GetStructures()
+
+            dvhTps = dvhcalc.get_dvh(Rs_tps.ds, Rd_tps.ds, 3)
+            dvhTps = dvhTps.relative_volume
+            dvhTps = dvhTps.absolute_dose()
+
+            dvhdata_tps = dvhdata(dvhTps)
+            logging.info(dvhdata_tps.getEUDs(1))
+
+
+            # fileObj.write(patientInfo.MedicalRecordNumber)
+
+            targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
+                             'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA','ESOPHAGUS','PATIENT']
             for (key, Roi) in structs.items():
-                print('============================')
-                print(key, Roi['name'])
-                if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
+                # print('============================')
+                logging.info("key=%d,ROI=%s", key, Roi['name'])
+                dvhCalc = None
+                dvhTps = None
+                # if Roi['name'].upper() in targetStructs:
+                if 'Mark' in Roi['name'] or 'point'in Roi['name'] or 'Iso' in Roi['name']:
                     continue
-                if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
-                    continue
+<<<<<<< HEAD
                 elif Roi['type'] == 'ORGAN':
                     logging.info('getdvH')
                     dvh_tps = getTPSDVH(tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
@@ -3077,20 +3165,43 @@ def plotCompareDVHs():
     #         dvh_cal = None
 
     # plt.show()
+=======
+                elif Roi['name'].upper() in targetStructs:
+                    # dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                    dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 8),
+                                              interpolation_segments_between_planes=2, use_structure_extents=True)
 
-def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
-    fileobj = open(resultData,'w+')
+                    for (item, contours) in structs_tps.items():
+                        if contours['name'].upper() == Roi['name'].upper():
+                            dvhTps = dvhcalc.get_dvh(
+                                Rs_tps.ds, Rd_tps.ds, item)
+                    if dvhCalc and dvhTps:
+                        dvhCalc = dvhCalc.relative_volume
+                        dvhTps = dvhTps.relative_volume
+                        dvhdata_cal = dvhdata(dvhCalc)
+                        dvhdata_tps = dvhdata(dvhTps)
+                        dvhdata_cal.cal_nrmsd(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
+                        dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
+                    else:
+                        logging.info('no validat data')
+
+>>>>>>> dcm
+
+def compareVolume(inputfolder, outputfolder, tpsDVHsDir, resultData):
+    fileobj = open(resultData, 'w+')
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
-            patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
-            print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
+            patientInfo = pinnObject.read(
+                os.path.join(inputfolder, patient, 'Patient'))
+            print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
+                  (patientInfo.FirstName + patientInfo.LastName))
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
             for (key, Roi) in structs.items():
                 # print('============================')
-                logging.info("key=%d,name=%s",key, Roi['name'])
+                logging.info("key=%d,name=%s", key, Roi['name'])
                 if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
                     continue
                 if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
@@ -3106,28 +3217,202 @@ def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
                     if dvh_tps and dvh_cal:
                         dvh_cal_volume = dvh_cal.volume
                         dvh_tps_volume = dvh_tps.volume
-                        values =dvh_cal.name + ',' +  str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str((dvh_cal_volume-dvh_tps_volume) * 100/dvh_tps_volume) + '\n'
+                        values = dvh_cal.name + ',' + str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str(
+                            (dvh_cal_volume - dvh_tps_volume) * 100 / dvh_tps_volume) + '\n'
                         fileobj.write(values)
                         logging.info(values)
             Rs = None
             Rd = None
     fileobj.close()
 
+def plotOnePatient(inputfolder,outputfolder,tpsDVHsDir,resultData):
+    patient = 'Patient_36068'
+
+    fileobj = open(resultData, 'w+')
+    pinnObject = pinn2Json()
+    if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
+        patientInfo = pinnObject.read(
+            os.path.join(inputfolder, patient, 'Patient'))
+        print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
+              (patientInfo.FirstName + patientInfo.LastName))
+        # calc from raw data
+        (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+        structs = Rs.GetStructures()
+
+        # dcm_from_tps
+        (Rs_tps, Rd_tps) = getTPSDCM(
+            tpsDVHsDir, patientInfo.MedicalRecordNumber)
+        structs_tps = Rs_tps.GetStructures()
+
+        dvhTps = dvhcalc.get_dvh(Rs_tps.ds, Rd_tps.ds, 3)
+        dvhTps = dvhTps.relative_volume
+        dvhTps = dvhTps.absolute_dose()
+
+        dvhdata_tps = dvhdata(dvhTps)
+        logging.info(dvhdata_tps.getEUDs(1))
+
+        # fileObj.write(patientInfo.MedicalRecordNumber)
+
+        targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
+                         'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA', 'ESOPHAGUS', 'PATIENT']
+        for (key, Roi) in structs.items():
+            # print('============================')
+            logging.info("key=%d,ROI=%s", key, Roi['name'])
+            dvhCalc = None
+            dvhTps = None
+            # if Roi['name'].upper() in targetStructs:
+            if 'Mark' in Roi['name'] or 'point' in Roi['name'] or 'Iso' in Roi['name']:
+                continue
+            elif Roi['name'].upper() in targetStructs:
+                dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+
+                for (item, contours) in structs_tps.items():
+                    if contours['name'].upper() == Roi['name'].upper():
+                        dvhTps = dvhcalc.get_dvh(
+                            Rs_tps.ds, Rd_tps.ds, item)
+                if dvhCalc and dvhTps:
+                    dvh_cal = dvhCalc.relative_volume
+                    dvh_tps = dvhTps.relative_volume
+                    # dvhdata_cal = dvhdata(dvhCalc)
+                    # dvhdata_tps = dvhdata(dvhTps)
+                    if dvh_tps.name == 'GTV':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='GTV', linestyle='solid', color='y')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='y')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'PGTV':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='PTV', linestyle='solid', color='r')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='r')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'CTV':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='CTV', linestyle='solid', color='orange')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='orange')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'PTV':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='PTV', linestyle='solid', color='b')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='b')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'Cord':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='y')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='y')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'Heart':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='k')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='k')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'Trachea':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='g')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='g')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'Esophagus':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='c')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='c')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'Lung_Total':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='m')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='m')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    if dvh_tps.name == 'Patient':
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='b')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='b')
+
+                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+                    #dvhdata_cal.cal_nrmsd(dvhdata_tps, patientInfo.MedicalRecordNumber, resultData)
+                    # dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
+                else:
+                    logging.info('no validat data')
+    plt.show()
+    fileobj.close()
+
+
+
+
 
 ####################################################################################################################################################
 ####################################################################################################################################################
 if __name__ == "__main__":
     workingPath = '/home/peter/PinnWork'
+<<<<<<< HEAD
     inputfolder = os.path.join(workingPath,'Accuracy','Mount_496285/')
     outputfolder = os.path.join(workingPath,'export_dicom_pool/')
     tpsDVHsDir = os.path.join(workingPath,'Accuracy','dvhs_P496285/')
+=======
+    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_496285/')
+    outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
+    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvh_tps_dcm/')
+>>>>>>> dcm
 
-    #log file
-    resultData = os.path.join(workingPath,'runlogger', time.strftime("%Y%m%d-%H%M%S") + 'dvhdata.csv')
+    # log file
+    resultData = os.path.join(workingPath, 'runlogger', time.strftime(
+        "%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
+<<<<<<< HEAD
     compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
     # compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
+=======
+    # compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
+    compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    # plotOnePatient(inputfolder, outputfolder, tpsDVHsDir, resultData)
+>>>>>>> dcm
 
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
