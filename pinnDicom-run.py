@@ -2901,7 +2901,7 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                     continue
                 elif Roi['name'].upper() in targetStructs:
                     # dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                    dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 8),
+                    dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 16),
                                               interpolation_segments_between_planes=2, use_structure_extents=True)
 
                     for (item, contours) in structs_tps.items():
@@ -2960,9 +2960,10 @@ def compareVolume(inputfolder, outputfolder, tpsDVHsDir, resultData):
             Rd = None
     fileobj.close()
 
-def plotOnePatient(inputfolder,outputfolder,tpsDVHsDir,resultData):
+def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
     patient = 'Patient_36068'
-
+    plt.rcParams['font.sans-serif'] = ['SimHei']
+    plt.rcParams['axes.unicode_minus'] = False
     fileobj = open(resultData, 'w+')
     pinnObject = pinn2Json()
     if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
@@ -2984,7 +2985,7 @@ def plotOnePatient(inputfolder,outputfolder,tpsDVHsDir,resultData):
         dvhTps = dvhTps.absolute_dose()
 
         dvhdata_tps = dvhdata(dvhTps)
-        logging.info(dvhdata_tps.getEUDs(1))
+        # logging.info(dvhdata_tps.getEUDs(1))
 
         # fileObj.write(patientInfo.MedicalRecordNumber)
 
@@ -3017,6 +3018,7 @@ def plotOnePatient(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         plt.axis([0, 70, 0, 105])  # for relative volume
                         plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+
                         if dvh_tps.name:
                             plt.legend(loc='best')
                         plt.grid(True)
@@ -3024,99 +3026,219 @@ def plotOnePatient(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='PTV', linestyle='solid', color='r')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='r')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'CTV':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='CTV', linestyle='solid', color='orange')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='orange')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'PTV':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='PTV', linestyle='solid', color='b')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='b')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Cord':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='y')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='y')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Heart':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='k')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='k')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Trachea':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='g')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='g')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Esophagus':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='c')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='c')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Lung_Total':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='m')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='m')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legent(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Patient':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='b')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='b')
 
-                        plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legent(loc='best')
+                        plt.grid(True)
+                    #dvhdata_cal.cal_nrmsd(dvhdata_tps, patientInfo.MedicalRecordNumber, resultData)
+                    # dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
+                else:
+                    logging.info('no validat data')
+    # plt.savefig('/home/peter/PinnWork/runlogger/dvh.eps',format='eps',dpi=600)
+    plt.show()
+    fileobj.close()
+
+def plotOnePatientdDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
+    patient = 'Patient_36068'
+
+    fileobj = open(resultData, 'w+')
+    pinnObject = pinn2Json()
+    if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
+        patientInfo = pinnObject.read(
+            os.path.join(inputfolder, patient, 'Patient'))
+        print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
+              (patientInfo.FirstName + patientInfo.LastName))
+        # calc from raw data
+        (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+        structs = Rs.GetStructures()
+
+        # dcm_from_tps
+        (Rs_tps, Rd_tps) = getTPSDCM(
+            tpsDVHsDir, patientInfo.MedicalRecordNumber)
+        structs_tps = Rs_tps.GetStructures()
+
+        dvhTps = dvhcalc.get_dvh(Rs_tps.ds, Rd_tps.ds, 3)
+        dvhTps = dvhTps.relative_volume
+        dvhTps = dvhTps.absolute_dose()
+
+        dvhdata_tps = dvhdata(dvhTps)
+        # logging.info(dvhdata_tps.getEUDs(1))
+
+        # fileObj.write(patientInfo.MedicalRecordNumber)
+
+        targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
+                         'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA', 'ESOPHAGUS', 'PATIENT']
+        target = ['GTV', 'CTV', 'PGTV', 'PTV']
+        oar    =  ['CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA', 'ESOPHAGUS', 'PATIENT']
+        for (key, Roi) in structs.items():
+            # print('============================')
+            logging.info("key=%d,ROI=%s", key, Roi['name'])
+            dvhCalc = None
+            dvhTps = None
+            # if Roi['name'].upper() in targetStructs:
+            if 'Mark' in Roi['name'] or 'point' in Roi['name'] or 'Iso' in Roi['name']:
+                continue
+            elif Roi['name'].upper() in targetStructs:
+                dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+
+                for (item, contours) in structs_tps.items():
+                    if contours['name'].upper() == Roi['name'].upper():
+                        dvhTps = dvhcalc.get_dvh(
+                            Rs_tps.ds, Rd_tps.ds, item)
+                if dvhCalc and dvhTps:
+                    dvh_cal = dvhCalc.relative_volume
+                    dvh_tps = dvhTps.relative_volume
+                    dvh_cal = dvh_cal.differential
+                    dvh_tps = dvh_tps.differential
+
+
+                    if dvh_tps.name.upper() in  targetStructs:
+                        # plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='GTV', linestyle='solid', color='y')
+                        # plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='y')
+
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts,label=dvh_cal.name + '_calc', color='b')
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts,label=dvh_cal.name + '_tps', color='r')
+
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
                         plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
                             plt.legend(loc='best')
                         plt.grid(True)
+                        filename = os.path.join('/home/peter/PinnWork/runlogger/',dvh_tps.name )
+                        plt.savefig(filename+'.eps',format='eps',dpi=1000)
+                        plt.savefig(filename+'.png', format='png', dpi=1000)
+                        plt.close()
+
+                    labelno = 1
+                    if dvh_tps.name.upper() in targetStructs:
+                        axe = plt.subplot(2,2,labelno)
+                        plt.subplot('22'+str(labelno))
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name + '_calc', color='b')
+                        plt.subplot('22'+str(labelno))
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_cal.name + '_tps', color='r')
+                        labelno = labelno + 1
+
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+
+                    filename = os.path.join('/home/peter/PinnWork/runlogger/', 'TRAGETS')
+                    plt.savefig(filename + '.eps', format='eps', dpi=1000)
+                    plt.savefig(filename + '.png', format='png', dpi=1000)
+                    plt.close()
+
+                    #for oar
+                    labelno = 1
+                    if dvh_tps.name.upper() in targetStructs:
+                        axe = plt.subplot(2,2,labelno)
+                        plt.subplot('32'+str(labelno))
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name + '_calc', color='b')
+                        plt.subplot('32'+str(labelno))
+                        plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_cal.name + '_tps', color='r')
+                        labelno = labelno + 1
+                        # plt.axis([0, 70, 0, 105])  # for relative volume
+                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        if dvh_tps.name:
+                            plt.legend(loc='best')
+                        plt.grid(True)
+
+                    filename = os.path.join('/home/peter/PinnWork/runlogger/', 'OAR')
+                    plt.savefig(filename + '.eps', format='eps', dpi=1000)
+                    plt.savefig(filename + '.png', format='png', dpi=1000)
+                    plt.close()
                     #dvhdata_cal.cal_nrmsd(dvhdata_tps, patientInfo.MedicalRecordNumber, resultData)
                     # dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
                 else:
                     logging.info('no validat data')
     plt.show()
     fileobj.close()
-
 
 
 
@@ -3136,8 +3258,9 @@ if __name__ == "__main__":
         "%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
     # compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
-    compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
-    # plotOnePatient(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    # compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    # plotOnePatientcDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    plotOnePatientdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
