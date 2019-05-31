@@ -2590,22 +2590,21 @@ class dvhdata(DVH):
         self.notes = dvh.notes
         # DVH.__init__(self,counts,bins,dvh_type,dose_units,volume_units,rx_dose,name,color,notes)
     def getEUDs(self,a_value):
-        if self.dose_units == '%' and self.volume_units != '%':
-            return 0
-        # if len(self.bins) != len(self.counts):
-        #     return 0
+        """Use (1) relative volume; (2)absolute dose; (3)differential DVH . to calc gEUD"""
 
-        prevolume = 0
-        vol_diff = 0
+        eudcalc = self.differential
+        if self.volume_units == 'cm3':
+            eudcalc = eudcalc.relative_volume
+        if self.dose_units == '%':
+            eudcalc = eudcalc.absolute_dose()
+
         sumdata = 0
-        for index,volume in enumerate(self.counts,0):
-            if index == 0:
-                prevolume = volume
-            else:
-                vol_diff = abs(volume-prevolume)/100
-                dose = self.bins[index+1]
-                sumdata += vol_diff * pow(dose,a_value)
+
+        for volume,dose in zip(eudcalc.counts,eudcalc.bins):
+            sumdata += volume/100 * pow(dose,a_value)
+
         gedu = pow(sumdata,1/a_value)
+
         return gedu
 
 
@@ -2871,8 +2870,8 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
             print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
                   (patientInfo.FirstName + patientInfo.LastName))
             # calc from raw data
-            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
-            structs = Rs.GetStructures()
+            # (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+            # structs = Rs.GetStructures()
 
             # dcm_from_tps
             (Rs_tps, Rd_tps) = getTPSDCM(
@@ -2880,7 +2879,8 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
             structs_tps = Rs_tps.GetStructures()
 
             dvhTps = dvhcalc.get_dvh(Rs_tps.ds, Rd_tps.ds, 3)
-            dvhTps = dvhTps.relative_volume
+            dvhTps = dvhTps.differential
+            # dvhTps = dvhTps.relative_volume
             dvhTps = dvhTps.absolute_dose()
 
             dvhdata_tps = dvhdata(dvhTps)
@@ -3258,9 +3258,9 @@ if __name__ == "__main__":
         "%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
     # compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
-    # compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientcDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
-    plotOnePatientdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    # plotOnePatientdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
