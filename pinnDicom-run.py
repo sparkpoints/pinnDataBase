@@ -2858,8 +2858,121 @@ def getTPSDCM(tpsDVHHome, patienMRN):
             break
     return Rs, Rd
 
+def compareTPSandCalcdDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
+    pinnObject = pinn2Json()
+    patientDir = os.listdir(inputfolder)
+    for patient in patientDir:
+        if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
+            patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
+            print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
+            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+            structs = Rs.GetStructures()
+            for (key, Roi) in structs.items():
+                print('============================')
+                print(key, Roi['name'])
+                if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
+                    continue
+                if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
+                    continue
+                elif Roi['type'] == 'ORGAN':
+                    logging.info('getdvH')
+                    dvh_tps = getTPSDVH(
+                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
+                        #                          interpolation_segments_between_planes=2, use_structure_extents=True)
+                        # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps and dvh_cal:
+                        logging.info('abs')
 
-def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
+
+                        #dvh_cal = dvh_cal.relative_volume()
+                        logging.info(dvh_cal.volume)
+                        #dvh_tps = dvh_tps.relative_volume()
+                        logging.info(dvh_tps.volume)
+                        #
+
+                        dvhdata_cal = dvhdata(dvh_cal)
+                        dvhdata_tps = dvhdata(dvh_tps)
+                        dvhdata_cal.cal_nrmsd(dvhdata_tps, patientInfo.MedicalRecordNumber,resultData)
+                        dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
+
+
+                        dvhdata_cal = None
+                        dvhdata_tps = None
+                    dvh_tps = None
+                    dvh_cal = None
+
+                elif Roi['type'] == 'TARGET':
+                    dvh_tps = getTPSDVH(
+                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        #4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps and dvh_cal:
+                        if dvh_cal.volume == 0:
+                            dvh_tps = None
+                            dvh_cal = None
+                            continue
+
+                        dvhdata_cal = dvhdata(dvh_cal)
+                        dvhdata_tps = dvhdata(dvh_tps)
+
+                        dvhdata_cal.cal_nrmsd(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
+                        dvhdata_cal.getDifferences(dvhdata_tps, patientInfo.MedicalRecordNumber,resultData)
+
+                        dvhdata_cal = None
+                        dvhdata_tps = None
+
+                    dvh_tps = None
+                    dvh_cal = None
+
+            Rs = None
+            Rd = None
+
+
+def compareVolumedDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
+    fileobj = open(resultData,'w+')
+    pinnObject = pinn2Json()
+    patientDir = os.listdir(inputfolder)
+    for patient in patientDir:
+        if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
+            patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
+            print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
+            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+            structs = Rs.GetStructures()
+            for (key, Roi) in structs.items():
+                # print('============================')
+                logging.info("key=%d,name=%s",key, Roi['name'])
+                if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
+                    continue
+                if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
+                    continue
+                elif Roi['type'] == 'ORGAN':
+                    dvh_tps = None
+                    dvh_cal = None
+                    # logging.info('getdvH')
+                    dvh_tps = getTPSDVH(
+                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+                    if dvh_tps:
+                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
+                        #                          interpolation_segments_between_planes=2, use_structure_extents=True)
+                        # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
+                    if dvh_tps and dvh_cal:
+                        dvh_cal_volume = dvh_cal.volume
+                        dvh_tps_volume = dvh_tps.volume
+                        values =dvh_cal.name + ',' +  str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str((dvh_cal_volume-dvh_tps_volume) * 100/dvh_tps_volume) + '\n'
+                        fileobj.write(values)
+                        logging.info(values)
+            Rs = None
+            Rd = None
+    fileobj.close()
+
+
+
+def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
     # fileObj = open(result, 'a')
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
@@ -2870,8 +2983,8 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
             print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
                   (patientInfo.FirstName + patientInfo.LastName))
             # calc from raw data
-            # (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
-            # structs = Rs.GetStructures()
+            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+            structs = Rs.GetStructures()
 
             # dcm_from_tps
             (Rs_tps, Rd_tps) = getTPSDCM(
@@ -2919,7 +3032,7 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                         logging.info('no validat data')
 
 
-def compareVolume(inputfolder, outputfolder, tpsDVHsDir, resultData):
+def compareVolumeDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
     fileobj = open(resultData, 'w+')
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
@@ -3249,16 +3362,21 @@ if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
     # inputfolder = '/home/peter/PinnWork/NPC/'
     workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_496285/')
+    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_CIRS/')
     outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvh_tps_dcm/')
+    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvhs_P38114/')
 
     # log file
     resultData = os.path.join(workingPath, 'runlogger', time.strftime(
         "%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
-    # compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
-    compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    #compare with export dDVH data
+    # compareVolumedDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    compareTPSandCalcdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
+
+    #compare with export DiCOM data
+    # compareVolumeDICOM(inputfolder,outputfolder,tpsDVHsDir,resultData)
+    # compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientcDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
