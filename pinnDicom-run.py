@@ -2636,6 +2636,11 @@ class dvhdata(DVH):
             if attr in ['volume', 'max', 'min', 'mean']:
                 val = ref.__getattribute__(attr)
                 cmpval = comp.__getattribute__(attr)
+            elif attr in ['V5','V20','V30','V40','V50']:
+                attrname = str(attr)
+                doseValue = (float)(attrname.replace('V',''))
+                val = ref.volume_constraint(doseValue, ref.dose_units).value
+                cmpval = comp.volume_constraint(doseValue,comp.dose_units).value
             else:
                 val = ref.statistic(attr).value
                 cmpval = comp.statistic(attr).value
@@ -2648,6 +2653,11 @@ class dvhdata(DVH):
             if attr in ['volume', 'max', 'min', 'mean']:
                 val = ref.__getattribute__(attr)
                 cmpval = comp.__getattribute__(attr)
+            elif attr in ['V5','V20','V30','V40','V50']:
+                attrname = str(attr)
+                doseValue = (float)(attrname.replace('V', ''))
+                val = ref.volume_constraint(doseValue,ref.dose_units).value
+                cmpval = comp.volume_constraint(doseValue,comp.dose_units).value
             else:
                 val = ref.statistic(attr).value
                 cmpval = comp.statistic(attr).value
@@ -2707,6 +2717,14 @@ class dvhdata(DVH):
             fileObj.write(
                 (savefmtcmp(mrn,'V5', self.dose_units, self.relative_dose(), dvh.relative_dose())))
         print(fmtstr.format(*fmtcmp('D2cc', self.dose_units)))
+        if 'Lung_Total' in self.name:
+            print(fmtstr.format(*fmtcmp('V5', self.volume_units)))
+            print(fmtstr.format(*fmtcmp('V20', self.volume_units)))
+            print(fmtstr.format(*fmtcmp('V30', self.volume_units)))
+        elif 'Heart' in self.name or 'Esopha' in self.name or 'Larynx' in self.name or 'Trachea' in self.name:
+            print(fmtstr.format(*fmtcmp('V30', self.volume_units)))
+            print(fmtstr.format(*fmtcmp('V40', self.volume_units)))
+            print(fmtstr.format(*fmtcmp('V50', self.volume_units)))
         # print(self.volume_constraint(20, 'Gy'))
         # print(dvh.volume_constraint(20, 'Gy'))
 
@@ -2720,6 +2738,15 @@ class dvhdata(DVH):
         fileObj.write(savefmtcmp(mrn,'D90', self.dose_units))
         fileObj.write(savefmtcmp(mrn,'D50', self.dose_units))
         fileObj.write(savefmtcmp(mrn,'D2cc', self.dose_units))
+
+        if 'Lung_Total' in self.name:
+            fileObj.write(savefmtcmp(mrn, 'V5', self.dose_units))
+            fileObj.write(savefmtcmp(mrn, 'V20', self.dose_units))
+            fileObj.write(savefmtcmp(mrn, 'V30', self.dose_units))
+        elif 'Heart' in self.name or 'Esopha' in self.name or 'Larynx' in self.name or 'Trachea' in self.name:
+            fileObj.write(savefmtcmp(mrn, 'V30', self.dose_units))
+            fileObj.write(savefmtcmp(mrn, 'V40', self.dose_units))
+            fileObj.write(savefmtcmp(mrn, 'V50', self.dose_units))
         fileObj.close()
 
         # self.plot()
@@ -2996,8 +3023,8 @@ def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
             # dvhTps = dvhTps.relative_volume
             dvhTps = dvhTps.absolute_dose()
 
-            dvhdata_tps = dvhdata(dvhTps)
-            logging.info(dvhdata_tps.getEUDs(1))
+            # dvhdata_tps = dvhdata(dvhTps)
+            # logging.info(dvhdata_tps.getEUDs(1))
 
 
             # fileObj.write(patientInfo.MedicalRecordNumber)
@@ -3012,8 +3039,8 @@ def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                 # if Roi['name'].upper() in targetStructs:
                 if 'Mark' in Roi['name'] or 'point'in Roi['name'] or 'Iso' in Roi['name']:
                     continue
-                # elif Roi['name'].upper() in targetStructs:
-                else:
+                elif Roi['name'].upper() in targetStructs:
+                # else:
                     dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
                     # dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 16),
                     #                           interpolation_segments_between_planes=2, use_structure_extents=True)
@@ -3030,8 +3057,15 @@ def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                         # logging.info(values)
                         # dvhCalc = dvhCalc.absolute_volume
                         # dvhTps = dvhTps.absolute_volume
+
                         dvhdata_cal = dvhdata(dvhCalc)
+                        dvhdata_cal.rx_dose = dvhdata_cal.statistic('D95').value
                         dvhdata_tps = dvhdata(dvhTps)
+                        dvhdata_tps.rx_dose = dvhdata_tps.statistic('D95').value
+
+                        logging.info("dvhdataD95=%s"%str(dvhdata_tps.statistic('D95').value))
+                        logging.info("V20:%s" %str(dvhdata_tps.statistic('V20Gy').value))
+
                         dvhdata_cal.cal_nrmsd(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
                         dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
                     else:
@@ -3365,9 +3399,9 @@ if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
     # inputfolder = '/home/peter/PinnWork/NPC/'
     workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_CIRS/')
+    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_Lung12/')
     outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'CIRS_tps_dcm/')
+    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_Lung12/')
 
     # log file
     resultData = os.path.join(workingPath, 'runlogger', time.strftime(
