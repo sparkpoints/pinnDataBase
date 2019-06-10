@@ -3012,18 +3012,24 @@ def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                 # if Roi['name'].upper() in targetStructs:
                 if 'Mark' in Roi['name'] or 'point'in Roi['name'] or 'Iso' in Roi['name']:
                     continue
-                elif Roi['name'].upper() in targetStructs:
-                    # dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                    dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 16),
-                                              interpolation_segments_between_planes=2, use_structure_extents=True)
+                # elif Roi['name'].upper() in targetStructs:
+                else:
+                    dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                    # dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 16),
+                    #                           interpolation_segments_between_planes=2, use_structure_extents=True)
 
                     for (item, contours) in structs_tps.items():
                         if contours['name'].upper() == Roi['name'].upper():
                             dvhTps = dvhcalc.get_dvh(
                                 Rs_tps.ds, Rd_tps.ds, item)
                     if dvhCalc and dvhTps:
-                        dvhCalc = dvhCalc.relative_volume
-                        dvhTps = dvhTps.relative_volume
+                        # dvh_cal_volume = dvh_cal.volume
+                        # dvh_tps_volume = dvh_tps.volume
+                        # values = dvh_cal.name + ',' + str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str((dvh_cal_volume - dvh_tps_volume) * 100 / dvh_tps_volume) + '\n'
+                        # # fileobj.write(values)
+                        # logging.info(values)
+                        # dvhCalc = dvhCalc.absolute_volume
+                        # dvhTps = dvhTps.absolute_volume
                         dvhdata_cal = dvhdata(dvhCalc)
                         dvhdata_tps = dvhdata(dvhTps)
                         dvhdata_cal.cal_nrmsd(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
@@ -3051,7 +3057,7 @@ def compareVolumeDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                     continue
                 if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
                     continue
-                elif Roi['type'] == 'ORGAN':
+                else:
                     dvh_tps = None
                     dvh_cal = None
                     # logging.info('getdvH')
@@ -3059,9 +3065,6 @@ def compareVolumeDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                         tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
                     if dvh_tps:
                         dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
-                        #                          interpolation_segments_between_planes=2, use_structure_extents=True)
-                        # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
                     if dvh_tps and dvh_cal:
                         dvh_cal_volume = dvh_cal.volume
                         dvh_tps_volume = dvh_tps.volume
@@ -3364,7 +3367,7 @@ if __name__ == "__main__":
     workingPath = '/home/peter/PinnWork'
     inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_CIRS/')
     outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvhs_P38114/')
+    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'CIRS_tps_dcm/')
 
     # log file
     resultData = os.path.join(workingPath, 'runlogger', time.strftime(
@@ -3372,11 +3375,11 @@ if __name__ == "__main__":
 
     #compare with export dDVH data
     # compareVolumedDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
-    compareTPSandCalcdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    # compareTPSandCalcdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
     #compare with export DiCOM data
     # compareVolumeDICOM(inputfolder,outputfolder,tpsDVHsDir,resultData)
-    # compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientcDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
 
