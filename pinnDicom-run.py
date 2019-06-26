@@ -343,7 +343,7 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
 
     #############################################################################################
     # loop below creates plan files for each plan in directory (based on what is in the Patient file)
-    for i in range(0, plancount):
+    for i in range(0, 1):
 
         planame = plannamelist[i]
         plandirect = "Plan_" + planids[i]
@@ -2607,7 +2607,26 @@ class dvhdata(DVH):
 
         return gedu
 
+    def formatValue(self,attr):
+        if not self.rx_dose:
+            try:
+                value = self.statistic('D95').value
+            except IndexError:
+                return 0
+            self.rx_dose = value
 
+        if attr in ['volume', 'max', 'min', 'mean']:
+            val =self.__getattribute__(attr)
+            # cmpval = comp.__getattribute__(attr)
+        elif attr in ['V5','V10','V15', 'V20', 'V25', 'V30', 'V35', 'V40', 'V45','V50']:
+            attrname = str(attr)
+            doseValue = (float)(attrname.replace('V', ''))
+            val = self.volume_constraint(doseValue, self.dose_units).value/self.volume
+            # cmpval = comp.volume_constraint(doseValue, comp.dose_units).value
+        else:
+            val = self.statistic(attr).value
+            # cmpval = comp.statistic(attr).value
+        return str('%.2f' %val)
 
     def getDifferences(self, dvh, mrn, result):
         """compare dvh with another dvh, compute the difffereces"""
@@ -3072,18 +3091,40 @@ def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                         logging.info('no validat data')
 
 
-def compareVolumeDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
+def getBatchData(inputfolder, outputfolder, tpsDVHsDir,finishedPatient, resultData):
+    finObj = open(finishedPatient,'r')
+    finList = []
+    for line in finObj.readline():
+        finList.append(line)
+    finObj.close()
+
+    finObj = open(finishedPatient, 'w+')
+
     fileobj = open(resultData, 'w+')
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
+
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
             patientInfo = pinnObject.read(
                 os.path.join(inputfolder, patient, 'Patient'))
             print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
                   (patientInfo.FirstName + patientInfo.LastName))
-            (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
-            structs = Rs.GetStructures()
+            #cheching new patient, parsing patient just skip
+            if patientInfo.MedicalRecordNumber in finList:
+                continue
+            else:
+                finObj.write(patientInfo.MedicalRecordNumber)
+                finObj.write('\n')
+
+            try:
+                (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
+                structs = Rs.GetStructures()
+            except(IOError,OSError,TypeError):
+                continue
+
+            targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV','CORD']
+            oarsStructs = ['HEART', 'TRACHEA', 'ESOPHAGUS']
             for (key, Roi) in structs.items():
                 # print('============================')
                 logging.info("key=%d,name=%s", key, Roi['name'])
@@ -3091,24 +3132,36 @@ def compareVolumeDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                     continue
                 if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
                     continue
-                else:
-                    dvh_tps = None
-                    dvh_cal = None
-                    # logging.info('getdvH')
-                    dvh_tps = getTPSDVH(
-                        tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
-                    if dvh_tps:
-                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                    if dvh_tps and dvh_cal:
-                        dvh_cal_volume = dvh_cal.volume
-                        dvh_tps_volume = dvh_tps.volume
-                        values = dvh_cal.name + ',' + str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str(
-                            (dvh_cal_volume - dvh_tps_volume) * 100 / dvh_tps_volume) + '\n'
-                        fileobj.write(values)
-                        logging.info(values)
+                elif Roi['name'].upper() in targetStructs:
+                    dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                    dvh_cal = dvhdata(dvh_cal)
+                    if dvh_cal.volume < 0.3:
+                        continue
+                    values = patientInfo.MedicalRecordNumber + ',' + dvh_cal.name + ','
+                    if dvh_cal:
+                        for attr in ['volume', 'D2cc', 'mean', 'D98', 'D95', 'D50']:
+                            values += str(dvh_cal.formatValue(attr))
+                            values += ','
+                    values += '\n'
+                    fileobj.write(values)
+                    logging.info(values)
+                elif Roi['name'].upper() in oarsStructs:
+                    dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                    dvh_cal = dvhdata(dvh_cal)
+                    values = patientInfo.MedicalRecordNumber + ',' + dvh_cal.name + ','
+                    if dvh_cal:
+                        for attr in ['volume', 'D2cc', 'mean', 'D98', 'D95', 'D50','V5','V10',\
+                                     'V15', 'V20', 'V25', 'V30', 'V35', 'V40', 'V45','V50']:
+                            values += str(dvh_cal.formatValue(attr))
+                            values += ','
+                    values += '\n'
+                    fileobj.write(values)
+                    logging.info(values)
+
             Rs = None
             Rd = None
     fileobj.close()
+    finObj.close()
 
 def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
     patient = 'Patient_36068'
@@ -3399,13 +3452,15 @@ if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
     # inputfolder = '/home/peter/PinnWork/NPC/'
     workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_Lung12/')
+    # inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_0/')
+    inputfolder = '/media/PinnSETemp/NewPatients/Institution_3856/Mount_0/'
     outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
     tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_Lung12/')
 
     # log file
-    resultData = os.path.join(workingPath, 'runlogger', time.strftime(
-        "%Y%m%d-%H%M%S") + 'dvhdata.csv')
+    currentTime = time.strftime("%Y%m%d-%H%M%S")
+    resultData = os.path.join(workingPath, 'runlogger', currentTime + 'dvhdata.csv')
+    finishedData = os.path.join(workingPath, 'runlogger', 'finisheddata.csv')
 
     #compare with export dDVH data
     # compareVolumedDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
@@ -3413,10 +3468,10 @@ if __name__ == "__main__":
 
     #compare with export DiCOM data
     # compareVolumeDICOM(inputfolder,outputfolder,tpsDVHsDir,resultData)
-    compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    # compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientcDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
-
+    getBatchData(inputfolder, outputfolder, tpsDVHsDir, finishedData,resultData)
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
     #     readpatient(dir,inputfolder,outputfolder)
