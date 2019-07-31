@@ -3124,7 +3124,7 @@ def getBatchData(inputfolder, outputfolder, tpsDVHsDir,finishedPatient, resultDa
                 continue
 
             targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV','CORD']
-            oarsStructs = ['HEART', 'TRACHEA', 'ESOPHAGUS']
+            oarsStructs = ['HEART', 'TRACHEA', 'LUNG_TOTAL']
             for (key, Roi) in structs.items():
                 # print('============================')
                 logging.info("key=%d,name=%s", key, Roi['name'])
@@ -3132,20 +3132,21 @@ def getBatchData(inputfolder, outputfolder, tpsDVHsDir,finishedPatient, resultDa
                     continue
                 if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
                     continue
-                elif Roi['name'].upper() in targetStructs:
-                    dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                    dvh_cal = dvhdata(dvh_cal)
-                    if dvh_cal.volume < 0.3:
-                        continue
-                    values = patientInfo.MedicalRecordNumber + ',' + dvh_cal.name + ','
-                    if dvh_cal:
-                        for attr in ['volume', 'D2cc', 'mean', 'D98', 'D95', 'D50']:
-                            values += str(dvh_cal.formatValue(attr))
-                            values += ','
-                    values += '\n'
-                    fileobj.write(values)
-                    logging.info(values)
-                elif Roi['name'].upper() in oarsStructs:
+                # elif Roi['name'].upper() in targetStructs:
+                #     dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                #     dvh_cal = dvhdata(dvh_cal)
+                #     if dvh_cal.volume < 0.3:
+                #         continue
+                #     values = patientInfo.MedicalRecordNumber + ',' + dvh_cal.name + ','
+                #     if dvh_cal:
+                #         for attr in ['volume', 'D2cc', 'mean', 'D98', 'D95', 'D50']:
+                #             values += str(dvh_cal.formatValue(attr))
+                #             values += ','
+                #     values += '\n'
+                #     fileobj.write(values)
+                #     logging.info(values)
+                # elif Roi['name'].upper() in oarsStructs:
+                elif Roi['name'].upper()  ==  'LUNG_TOTAL':
                     dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
                     dvh_cal = dvhdata(dvh_cal)
                     values = patientInfo.MedicalRecordNumber + ',' + dvh_cal.name + ','
