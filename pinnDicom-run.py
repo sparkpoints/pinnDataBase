@@ -2889,16 +2889,16 @@ def calcGamma(evaluation,reference):
         'dose_percent_threshold': 1,
         'distance_mm_threshold': 1,
         'lower_percent_dose_cutoff': 10,
-        'interp_fraction': 10,  # Should be 10 or more for more accurate results
+        'interp_fraction': 1,  # Should be 10 or more for more accurate results
         'max_gamma': 2,
         'random_subset': None,
         'local_gamma': True,
         'ram_available': 2 ** 29  # 1/2 GB
     }
 
-    # gamma = gamma_dicom(reference, evaluation, **gamma_options)
-    axes_reference, dose_reference = zyx_and_dose_from_dataset(reference)
-    gamma = gamma_percent_pass(reference,evaluation,3,2,'filter')
+    gamma = gamma_dicom(reference, evaluation, **gamma_options)
+    # axes_reference, dose_reference = zyx_and_dose_from_dataset(reference)
+    # gamma = gamma_percent_pass(reference,evaluation,3,2,'filter')
     valid_gamma = gamma[~np.isnan(gamma)]
 
     num_bins = (gamma_options['interp_fraction'] * gamma_options['max_gamma'])
@@ -2964,9 +2964,9 @@ if __name__ == "__main__":
     tpsDVHsDir = ''
     if sys.platform == 'linux' or sys.platform == 'linux2':
         workingPath = '/home/peter/PinnWork'
-        inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_496285/')
+        inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_CIRS/')
         outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvh_tps_dcm/')
+        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_CIRS')
     elif sys.platform == 'darwin':
         workingPath = '/Users/yang/PinnWork'
         inputfolder = os.path.join(workingPath, 'Accuracy', 'CIRS_Raw/')
