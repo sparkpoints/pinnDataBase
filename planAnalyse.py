@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#coding:utf-8
 ####################################################################################################################################################
 #   import libraries below
 ####################################################################################################################################################
@@ -16,7 +18,10 @@ from functools import reduce
 from random import randint
 
 from glob import glob
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.rcParams[u'font.sans-serif'] = ['simhei']
+matplotlib.rcParams['axes.unicode_minus'] = False
 from pymedphys.gamma import gamma_dicom, gamma_percent_pass, gamma_filter_numpy
 from pymedphys.dicom import zyx_and_dose_from_dataset
 from pymedphys.pinnacle import PinnacleExport
@@ -70,13 +75,144 @@ class arges():
     def __init__(self,input_path,output_path):
         self.input_path = input_path
         self.output_directory = output_path
-        self.verbose = False
+        self.verbose = True
         self.modality = ["CT", "RTSTRUCT", "RTDOSE", "RTPLAN"]
         self.plan = ''
         self.trial = ''
         self.list = ''
         self.image = ''
         self.uid_prefix = ''
+
+def calcGamma(refRD,evaRD):
+    reference = pydicom.dcmread(refRD)
+    evaluation = pydicom.dcmread(evaRD)
+
+    gamma_options = {
+        'dose_percent_threshold':3,
+        'distance_mm_threshold':2,
+        'lower_percent_dose_cutoff':10,
+        'interp_fraction':4,
+        'max_gamma':2,
+        'random_subset':None,
+        'local_gamma':True,
+        'ram_available':2**29
+    }
+    gamma = gamma_dicom(reference, evaluation, **gamma_options)
+    # %%
+    valid_gamma = gamma[~np.isnan(gamma)]
+
+    num_bins = (
+            gamma_options['interp_fraction'] * gamma_options['max_gamma'])
+    bins = np.linspace(0, gamma_options['max_gamma'], num_bins + 1)
+
+    plt.hist(valid_gamma, bins, density=True)
+    plt.xlim([0, gamma_options['max_gamma']])
+
+    pass_ratio = np.sum(valid_gamma <= 1) / len(valid_gamma)
+
+    plt.title("Local Gamma (3% / 2 mm) | Percent Pass: {0:.2f} %".format(pass_ratio * 100))
+    plt.savefig('gamma_hist.png', dpi=300)
+
+    # %%
+    (z_ref, y_ref, x_ref), dose_reference = zyx_and_dose_from_dataset(reference)
+    (z_eval, y_eval, x_eval), dose_evaluation = zyx_and_dose_from_dataset(evaluation)
+
+    dose_reference = dose_reference * 100
+    dose_evaluation = dose_evaluation * 100
+
+    lower_dose_cutoff = gamma_options['lower_percent_dose_cutoff'] / 100 * np.max(dose_reference)
+
+    relevant_slice = (
+            np.max(dose_reference, axis=(1, 2)) >
+            lower_dose_cutoff)
+    slice_start = np.max([
+        np.where(relevant_slice)[0][0],
+        0])
+    slice_end = np.min([
+        np.where(relevant_slice)[0][-1],
+        len(z_ref)])
+    max_ref_dose = np.max(dose_reference)
+
+    z_vals = z_ref[slice(slice_start, slice_end, 20)]
+
+    # for z_i in z_vals:
+    #     for i,z_axal in enumerate(z_eval,0):
+    #         if z_i == z_axal:
+    #             eval_slices.append(dose_evaluation[i,:,:])
+    eval_slices = [
+        dose_evaluation[np.where(z_i - z_eval < 0.01)[0][0], :, :]
+        for z_i in z_vals
+    ]
+
+    ref_slices = [
+        dose_reference[np.where(z_i - z_eval < 0.01)[0][0], :, :]
+        for z_i in z_vals
+    ]
+
+    gamma_slices = [
+        gamma[np.where(z_i - z_eval < 0.01)[0][0], :, :]
+        for z_i in z_vals
+    ]
+
+    diffs = [
+        eval_slice - ref_slice
+        for eval_slice, ref_slice
+        in zip(eval_slices, ref_slices)
+    ]
+
+    max_diff = np.max(np.abs(diffs))
+
+    for i, (eval_slice, ref_slice, diff, gamma_slice,z_location) in enumerate(zip(eval_slices, ref_slices, diffs, gamma_slices,z_vals)):
+        fig, ax = plt.subplots(figsize=(13, 10), nrows=2, ncols=2)
+
+        c00 = ax[0, 0].contourf(
+            x_eval, y_eval, eval_slice, 100,
+            vmin=0, vmax=max_ref_dose, cmap=plt.get_cmap('viridis'))
+        ax[0, 0].set_title(u"评估剂量 (y = {0:.2f} mm)".format(z_location))
+        fig.colorbar(c00, ax=ax[0, 0], label='Dose (cGy)')
+        ax[0, 0].invert_yaxis()
+        ax[0, 0].set_xlabel('x (mm)')
+        ax[0, 0].set_ylabel('z (mm)')
+
+        c01 = ax[0, 1].contourf(
+            x_ref, y_ref, ref_slice, 100,
+            vmin=0, vmax=max_ref_dose, cmap=plt.get_cmap('viridis'))
+        ax[0, 1].set_title(u"参考剂量 (y = {0:.2f} mm)".format(z_location))
+        fig.colorbar(c01, ax=ax[0, 1], label='Dose (cGy)')
+        ax[0, 1].invert_yaxis()
+        ax[0, 1].set_xlabel('x (mm)')
+        ax[0, 1].set_ylabel('z (mm)')
+
+        c10 = ax[1, 0].contourf(
+            x_ref, y_ref, diff, 100,
+            # vmin=-max_diff, vmax=max_diff, cmap=plt.get_cmap('seismic'))
+            vmin= 0, vmax= 1, cmap=plt.get_cmap('seismic'))
+        ax[1, 0].set_title(u"剂量差")
+        fig.colorbar(c10, ax=ax[1, 0], label='[Dose Eval] - [Dose Ref] (cGy)')
+        ax[1, 0].invert_yaxis()
+        ax[1, 0].set_xlabel('x (mm)')
+        ax[1, 0].set_ylabel('z (mm)')
+
+        c11 = ax[1, 1].contourf(
+            x_ref, y_ref, gamma_slice, 100,
+            vmin=0, vmax=2, cmap=plt.get_cmap('coolwarm'))
+        ax[1, 1].set_title("Local Gamma (3 % / 2mm)")
+        fig.colorbar(c11, ax=ax[1, 1], label='Gamma Value')
+        ax[1, 1].invert_yaxis()
+        ax[1, 1].set_xlabel('x (mm)')
+        ax[1, 1].set_ylabel('z (mm)')
+
+        plt.savefig('{}.png'.format(i), dpi=300)
+        plt.show()
+        print("\n")
+
+
+def calcCompTPS(tpsData_path,output_path):
+    refRS = glob(os.path.join(tpsData_path,'RS*.dcm'))[0]
+    refRD = glob(os.path.join(tpsData_path,'RD*.dcm'))[0]
+    evaRS = glob(os.path.join(output_path, 'RS*.dcm'))[0]
+    evaRD = glob(os.path.join(output_path, 'RD*.dcm'))[0]
+    calcGamma(refRD, evaRD)
 
 if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
@@ -116,7 +252,12 @@ if __name__ == "__main__":
             output_path = os.path.join(outputfolder,patientInfo.MedicalRecordNumber)
             if not os.path.exists(output_path):
                 os.mkdir(output_path)
-            argobj = arges(input_path,output_path)
-            pinnacle_cli.export_cli(argobj)
+                argobj = arges(input_path,output_path)
+                pinnacle_cli.export_cli(argobj)
+            else:
+                print('plan analysed! skip\n')
+            tpsData_path = os.path.join(tpsDVHsDir,patientInfo.MedicalRecordNumber)
+            if os.path.exists(output_path) and os.path.exists(tpsData_path):
+                calcCompTPS(tpsData_path,output_path)
 
 
