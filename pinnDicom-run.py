@@ -13,7 +13,11 @@ import time  # used for getting current date and time for file
 from functools import reduce
 from random import randint
 
+from glob import glob
 import matplotlib.pyplot as plt
+from pymedphys.gamma import gamma_dicom
+from pymedphys.dicom import zyx_and_dose_from_dataset
+
 import numpy as np
 import pydicom as dicom
 import pydicom.uid
@@ -2850,6 +2854,8 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                 tpsDVHsDir, patientInfo.MedicalRecordNumber)
             structs_tps = Rs_tps.GetStructures()
 
+            calcGamma(Rd,Rd_tps)
+
             targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
                              'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA']
             for (key, Roi) in structs.items():
@@ -2875,6 +2881,31 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                     else:
                         logging.info('no validat data')
 
+def calcGamma(evaluation,reference):
+    gamma_options = {
+        'dose_percent_threshold': 1,
+        'distance_mm_threshold': 1,
+        'lower_percent_dose_cutoff': 10,
+        'interp_fraction': 10,  # Should be 10 or more for more accurate results
+        'max_gamma': 2,
+        'random_subset': None,
+        'local_gamma': True,
+        'ram_available': 2 ** 29  # 1/2 GB
+    }
+
+    gamma = gamma_dicom(reference, evaluation, **gamma_options)
+    valid_gamma = gamma[~np.isnan(gamma)]
+
+    num_bins = (gamma_options['interp_fraction'] * gamma_options['max_gamma'])
+    bins = np.linspace(0, gamma_options['max_gamma'], num_bins + 1)
+
+    plt.hist(valid_gamma, bins, density=True)
+    plt.xlim([0, gamma_options['max_gamma']])
+
+    pass_ratio = np.sum(valid_gamma <= 1) / len(valid_gamma)
+
+    plt.title("Local Gamma (0.5%/0.5mm) | Percent Pass: {0:.2f} %".format(pass_ratio * 100))
+    # plt.savefig('gamma_hist.png', dpi=300
 
 def compareVolume(inputfolder, outputfolder, tpsDVHsDir, resultData):
     fileobj = open(resultData, 'w+')
