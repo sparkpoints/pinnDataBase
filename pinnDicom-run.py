@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import operator
 # import pydicom.uid
-import os
+import os,sys
 import os.path
 import re  # used for isolated values from strings
 import struct
@@ -15,7 +15,7 @@ from random import randint
 
 from glob import glob
 import matplotlib.pyplot as plt
-from pymedphys.gamma import gamma_dicom
+from pymedphys.gamma import gamma_dicom, gamma_percent_pass, gamma_filter_numpy
 from pymedphys.dicom import zyx_and_dose_from_dataset
 
 import numpy as np
@@ -2854,7 +2854,10 @@ def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
                 tpsDVHsDir, patientInfo.MedicalRecordNumber)
             structs_tps = Rs_tps.GetStructures()
 
-            calcGamma(Rd,Rd_tps)
+            # from DoseComparison import DoseComparison
+            # gamma, nd = DoseComparison(Rd_tps.ds.pixel_array,Rd.ds.pixel_array,3,0.02)
+            # print(gamma,nd)
+            calcGamma(Rd_tps.ds,Rd.ds)
 
             targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
                              'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA']
@@ -2893,7 +2896,9 @@ def calcGamma(evaluation,reference):
         'ram_available': 2 ** 29  # 1/2 GB
     }
 
-    gamma = gamma_dicom(reference, evaluation, **gamma_options)
+    # gamma = gamma_dicom(reference, evaluation, **gamma_options)
+    axes_reference, dose_reference = zyx_and_dose_from_dataset(reference)
+    gamma = gamma_percent_pass(reference,evaluation,3,2,'filter')
     valid_gamma = gamma[~np.isnan(gamma)]
 
     num_bins = (gamma_options['interp_fraction'] * gamma_options['max_gamma'])
@@ -2953,11 +2958,22 @@ def compareVolume(inputfolder, outputfolder, tpsDVHsDir, resultData):
 ####################################################################################################################################################
 if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
-    # inputfolder = '/home/peter/PinnWork/NPC/'
-    workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_496285/')
-    outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvh_tps_dcm/')
+    workingPath = ''
+    inputfolder = ''
+    outputfolder = ''
+    tpsDVHsDir = ''
+    if sys.platform == 'linux' or sys.platform == 'linux2':
+        workingPath = '/home/peter/PinnWork'
+        inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_496285/')
+        outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
+        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'dvh_tps_dcm/')
+    elif sys.platform == 'darwin':
+        workingPath = '/Users/yang/PinnWork'
+        inputfolder = os.path.join(workingPath, 'Accuracy', 'CIRS_Raw/')
+        outputfolder = os.path.join(workingPath, 'Accuracy', 'export/')
+        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'CIRS_Tps/')
+    elif sys.platform == 'win32':
+        pass
 
     # log file
     resultData = os.path.join(workingPath, 'runlogger', time.strftime(
