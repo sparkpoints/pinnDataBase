@@ -312,14 +312,59 @@ def calcGamma(refRD,evaRD):
         plt.savefig(os.path.join(data_path, plotName), dpi=300)
         plt.close()
 
+def calcDiff(refRS,refRD,evaRS,evaRD):
+    structRS = evaRS.GetStructures()
+    for (key, Roi) in structs.items():
+        print('============================')
+        print(key, Roi['name'])
+        if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
+            continue
+        if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
+            continue
+        elif Roi['type'] == 'ORGAN':
+            logging.info('getdvH')
+            dvh_tps = getTPSDVH(tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
+            if dvh_tps:
+                # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
+                                          interpolation_segments_between_planes=2, use_structure_extents=True)
 
+            if dvh_tps and dvh_cal:
+                logging.info('abs')
+                logging.info(dvh_cal.volume)
+                logging.info(dvh_tps.volume)
+
+                dvhdata_cal = dvhdata(dvh_cal)
+                dvhdata_tps = dvhdata(dvh_tps)
+                dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
+                dvhdata_cal.getDifferences(dvhdata_tps, resultData)
+                dvhdata_cal = None
+                dvhdata_tps = None
+            dvh_tps = None
+            dvh_cal = None
 
 def calcCompTPS(tpsData_path,output_path):
-    refRS = glob(os.path.join(tpsData_path,'RS*.dcm'))[0]
-    refRD = glob(os.path.join(tpsData_path,'RD*.dcm'))[0]
-    evaRS = glob(os.path.join(output_path, 'RS*.dcm'))[0]
-    evaRD = glob(os.path.join(output_path, 'RD*.dcm'))[0]
-    calcGamma(refRD, evaRD)
+    refRS = ''
+    refRD = ''
+    evaRS = ''
+    evaRD = ''
+
+    refRSList = glob(os.path.join(tpsData_path,'RS*.dcm'))
+    if refRSList:
+        refRS = refRSList[0]
+    refRDList = glob(os.path.join(tpsData_path,'RD*.dcm'))
+    if refRDList:
+        refRD = refRSList[0]
+    evaRSList = glob(os.path.join(output_path, 'RS*.dcm'))
+    if evaRSList:
+        evaRS = evaRSList[0]
+    evaRDList = glob(os.path.join(output_path, 'RD*.dcm'))
+    if evaRDList:
+        evaRD = evaRDList[0]
+    if refRD and evaRD:
+        calcGamma(refRD, evaRD)
+    if refRS and refRD and evaRS and evaRD:
+        calcDiff(refRS,refRD,evaRS,evaRD)
 
 if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
