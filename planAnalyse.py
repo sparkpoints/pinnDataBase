@@ -20,6 +20,7 @@ from random import randint
 from glob import glob
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import colors
 matplotlib.rcParams[u'font.sans-serif'] = ['simhei']
 matplotlib.rcParams['axes.unicode_minus'] = False
 from pymedphys.gamma import gamma_dicom, gamma_percent_pass, gamma_filter_numpy
@@ -87,33 +88,63 @@ def calcGamma(refRD,evaRD):
     reference = pydicom.dcmread(refRD)
     evaluation = pydicom.dcmread(evaRD)
 
+    patientID = evaluation['PatientID'].value
+
+    doseThresh = [1,2,3]
+    dtaThresh = [1,2,3]
     gamma_options = {
-        'dose_percent_threshold':3,
-        'distance_mm_threshold':2,
-        'lower_percent_dose_cutoff':10,
-        'interp_fraction':4,
-        'max_gamma':2,
-        'random_subset':None,
-        'local_gamma':True,
-        'ram_available':2**29
+        'dose_percent_threshold': 1,
+        'distance_mm_threshold': 1,
+        'lower_percent_dose_cutoff': 10,
+        'interp_fraction': 5,
+        'max_gamma': 2,
+        'random_subset': None,
+        'local_gamma': True,
+        'ram_available': 2 ** 29
     }
+
+    fig, ax = plt.subplots(figsize=(13, 10), nrows=len(doseThresh), ncols=len(dtaThresh))
+    for dosei in doseThresh:
+        for dtaj in dtaThresh:
+            # subname = str('c' + dosei + dtaj)
+
+            gamma_options['dose_percent_threshold'] = dosei
+            gamma_options['distance_mm_threshold'] = dtaj
+
+            gamma = gamma_dicom(reference, evaluation, **gamma_options)
+            # %%
+            valid_gamma = gamma[~np.isnan(gamma)]
+
+            num_bins = (gamma_options['interp_fraction'] * gamma_options['max_gamma'])
+            bins = np.linspace(0, gamma_options['max_gamma'], num_bins + 1)
+
+            ax[dosei-1, dtaj-1].hist(valid_gamma, bins, density=True)
+            ax[dosei-1, dtaj-1].set_xlim([0, gamma_options['max_gamma']])
+
+            pass_ratio = np.sum(valid_gamma <= 1) / len(valid_gamma)
+
+            titleName = "Gamma:{0}%,{1}mm, PassRate: {2:.2f}%".format(dosei,dtaj,pass_ratio * 100)
+            ax[dosei-1, dtaj-1].set_title(titleName)
+            # plt.savefig('gamma_hist.png', dpi=300)
+    plotName = patientID + 'hist_gramm_grid.png'
+    data_path = os.path.join(os.getenv('HOME'),'PinnWork','plotdata',patientID)
+    if not os.path.exists(data_path):
+        os.mkdir(data_path)
+    plt.savefig(os.path.join(data_path,plotName), dpi=300)
+    plt.close()
+
+    #use 3%,2mm, cretia calc gamma for slices ploting
+    gamma_options['dose_percent_threshold'] = 3
+    gamma_options['distance_mm_threshold'] = 2
+
     gamma = gamma_dicom(reference, evaluation, **gamma_options)
-    # %%
-    valid_gamma = gamma[~np.isnan(gamma)]
+    # # %%
+    # valid_gamma = gamma[~np.isnan(gamma)]
+    #
+    # num_bins = (gamma_options['interp_fraction'] * gamma_options['max_gamma'])
+    # bins = np.linspace(0, gamma_options['max_gamma'], num_bins + 1)
 
-    num_bins = (
-            gamma_options['interp_fraction'] * gamma_options['max_gamma'])
-    bins = np.linspace(0, gamma_options['max_gamma'], num_bins + 1)
-
-    plt.hist(valid_gamma, bins, density=True)
-    plt.xlim([0, gamma_options['max_gamma']])
-
-    pass_ratio = np.sum(valid_gamma <= 1) / len(valid_gamma)
-
-    plt.title("Local Gamma (3% / 2 mm) | Percent Pass: {0:.2f} %".format(pass_ratio * 100))
-    plt.savefig('gamma_hist.png', dpi=300)
-
-    # %%
+    # %% plot slices
     (z_ref, y_ref, x_ref), dose_reference = zyx_and_dose_from_dataset(reference)
     (z_eval, y_eval, x_eval), dose_evaluation = zyx_and_dose_from_dataset(evaluation)
 
@@ -165,11 +196,16 @@ def calcGamma(refRD,evaRD):
     for i, (eval_slice, ref_slice, diff, gamma_slice,z_location) in enumerate(zip(eval_slices, ref_slices, diffs, gamma_slices,z_vals)):
         fig, ax = plt.subplots(figsize=(13, 10), nrows=2, ncols=2)
 
+        #add calobar
+        # cmap = colors.ListedColormap(['b','g','y','r'])
+        # bounds = list(np.arange(0,max_ref_dose,max_ref_dose/5))
+        # norm = colors.BoundaryNorm(bounds,cmap.N)
+
         c00 = ax[0, 0].contourf(
             x_eval, y_eval, eval_slice, 100,
             vmin=0, vmax=max_ref_dose, cmap=plt.get_cmap('viridis'))
-        ax[0, 0].set_title(u"评估剂量 (y = {0:.2f} mm)".format(z_location))
-        fig.colorbar(c00, ax=ax[0, 0], label='Dose (cGy)')
+        ax[0, 0].set_title(u"评估剂量 (y = {0:.1f} mm)".format(z_location))
+        fig.colorbar(c00, ax=ax[0, 0], label=u'剂量 (cGy)')
         ax[0, 0].invert_yaxis()
         ax[0, 0].set_xlabel('x (mm)')
         ax[0, 0].set_ylabel('z (mm)')
@@ -178,7 +214,7 @@ def calcGamma(refRD,evaRD):
             x_ref, y_ref, ref_slice, 100,
             vmin=0, vmax=max_ref_dose, cmap=plt.get_cmap('viridis'))
         ax[0, 1].set_title(u"参考剂量 (y = {0:.2f} mm)".format(z_location))
-        fig.colorbar(c01, ax=ax[0, 1], label='Dose (cGy)')
+        fig.colorbar(c01, ax=ax[0, 1], label=u'剂量 (cGy)')
         ax[0, 1].invert_yaxis()
         ax[0, 1].set_xlabel('x (mm)')
         ax[0, 1].set_ylabel('z (mm)')
@@ -197,14 +233,57 @@ def calcGamma(refRD,evaRD):
             x_ref, y_ref, gamma_slice, 100,
             vmin=0, vmax=2, cmap=plt.get_cmap('coolwarm'))
         ax[1, 1].set_title("Local Gamma (3 % / 2mm)")
-        fig.colorbar(c11, ax=ax[1, 1], label='Gamma Value')
+        fig.colorbar(c11, ax=ax[1, 1], label='Gamma')
         ax[1, 1].invert_yaxis()
         ax[1, 1].set_xlabel('x (mm)')
         ax[1, 1].set_ylabel('z (mm)')
 
-        plt.savefig('{}.png'.format(i), dpi=300)
-        plt.show()
-        print("\n")
+        plotName = patientID + 'gamma_{}.png'.format(i)
+        plt.savefig(os.path.join(data_path, plotName), dpi=300)
+        plt.close()
+        # plt.show()
+        # print("\n")
+
+        #plot x-y axie profile
+        ax_y = plt.subplot2grid((3,3),(0,0),rowspan=2)
+        y_loc = round(len(y_ref) / 2)
+        ref_x_line = ref_slice[:,y_loc]
+        eva_x_line = eval_slice[:, y_loc]
+        # ax_y.plot(y_ref, ref_x_line, 'r', y_ref, eva_x_line, 'b')
+        ax_y.plot( ref_x_line, y_ref,'r+',  eva_x_line, y_ref,'y')
+        ax_y.invert_xaxis()
+        ax_y.set_xlabel(u'剂量(cGy)')
+        ax_y.set_ylabel(u'位置(mm)')
+        # ax_y.xticks(y_ref,rotation='vertical')
+
+
+        ax_xy = plt.subplot2grid((3,3),(0,1),colspan=2,rowspan=2)
+        ax_xy.contourf(
+            x_ref, y_ref, ref_slice, 100,
+            vmin=0, vmax=max_ref_dose, cmap=plt.get_cmap('viridis'))
+        ax_xy.set_title(u"剂量 (y = {0:.2f} mm)".format(z_location))
+        ax_xy.axhline(y_ref[round(len(y_ref)/2)])
+        ax_xy.axvline(x_ref[round(len(x_ref)/2)])
+        #fig.colorbar(c01, ax=ax[0, 1], label=u'剂量 (cGy)')
+        ax_xy.invert_yaxis()
+        # ax_xy.set_xlabel('x (mm)')
+        # ax_xy.set_ylabel('z (mm)')
+
+        ax_x = plt.subplot2grid((3,3),(2,1),colspan=2)
+        x_loc = x_ref[round(len(x_ref)/2)]
+        ref_y_line = ref_slice[round(len(x_ref)/2),:]
+        eva_y_line = eval_slice[round(len(x_ref)/2),:]
+        ax_x.plot(x_ref,ref_y_line,'r+',x_ref,eva_y_line,'y')
+        ax_x.invert_yaxis()
+        ax_x.set_ylabel(u'剂量(cGy)')
+        ax_x.set_xlabel(u'位置(mm)')
+        # ax_x.legend()
+
+        # plt.show()
+        plotName = patientID + 'xyprofile_{}.png'.format(i)
+        plt.savefig(os.path.join(data_path, plotName), dpi=300)
+        plt.close()
+
 
 
 def calcCompTPS(tpsData_path,output_path):
