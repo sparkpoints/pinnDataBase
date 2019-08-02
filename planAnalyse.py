@@ -83,6 +83,30 @@ class arges():
         self.list = ''
         self.image = ''
         self.uid_prefix = ''
+def CleaningPatientPool(poolpath):
+    MatchRegList = ['^.auto.plan*',
+                    '.ErrorLog$',
+                    '.Transcript$',
+                    '.defaults$',
+                    '.pinnbackup$',
+                    '^Institution.\d+',
+                    '^Patient.\d+',
+                    '\s*~\s*',
+                    '.json$']
+
+    for dirpath, dirname, filenames in os.walk(poolpath):
+        for file in filenames:
+            filepath = os.path.join(dirpath, file)
+            if os.path.islink(filepath):
+                os.remove(filepath)
+                continue
+            for currentReg in MatchRegList:
+                if re.findall(currentReg, file):
+                    os.remove(filepath)
+                    print('del:%s\n' % filepath)
+        if dirname:
+            for currendir in dirname:
+                CleaningPatientPool(os.path.join(dirpath,currendir))
 
 def calcGamma(refRD,evaRD):
     reference = pydicom.dcmread(refRD)
@@ -246,11 +270,10 @@ def calcGamma(refRD,evaRD):
 
         #plot x-y axie profile
         ax_y = plt.subplot2grid((3,3),(0,0),rowspan=2)
-        y_loc = round(len(y_ref) / 2)
-        ref_x_line = ref_slice[:,y_loc]
-        eva_x_line = eval_slice[:, y_loc]
-        # ax_y.plot(y_ref, ref_x_line, 'r', y_ref, eva_x_line, 'b')
-        ax_y.plot( ref_x_line, y_ref,'r+',  eva_x_line, y_ref,'y')
+        x_loc = round(len(x_ref) / 2)
+        ref_y_line = ref_slice[:, x_loc]
+        eva_y_line = eval_slice[:, x_loc]
+        ax_y.plot(ref_y_line,y_ref, 'r+',  eva_y_line,y_ref, 'y')
         ax_y.invert_xaxis()
         ax_y.set_xlabel(u'剂量(cGy)')
         ax_y.set_ylabel(u'位置(mm)')
@@ -270,10 +293,15 @@ def calcGamma(refRD,evaRD):
         # ax_xy.set_ylabel('z (mm)')
 
         ax_x = plt.subplot2grid((3,3),(2,1),colspan=2)
-        x_loc = x_ref[round(len(x_ref)/2)]
-        ref_y_line = ref_slice[round(len(x_ref)/2),:]
-        eva_y_line = eval_slice[round(len(x_ref)/2),:]
-        ax_x.plot(x_ref,ref_y_line,'r+',x_ref,eva_y_line,'y')
+        y_loc = round(len(y_ref) / 2)
+        ref_x_line = ref_slice[y_loc, :]
+        eva_x_line = eval_slice[y_loc, :]
+        # ax_y.plot(y_ref, ref_x_line, 'r', y_ref, eva_x_line, 'b')
+        ax_x.plot(x_ref,ref_x_line, 'r+',  x_ref, eva_x_line, 'y')
+        # x_loc = x_ref[round(len(x_ref)/2)]
+        # ref_y_line = ref_slice[:,round(len(x_ref)/2)]
+        # eva_y_line = eval_slice[:,round(len(x_ref)/2)]
+        # ax_x.plot(y_ref,ref_y_line,'r+',y_ref,eva_y_line,'y')
         ax_x.invert_yaxis()
         ax_x.set_ylabel(u'剂量(cGy)')
         ax_x.set_xlabel(u'位置(mm)')
@@ -303,7 +331,7 @@ if __name__ == "__main__":
         workingPath = '/home/peter/PinnWork'
         inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_CIRS/')
         outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_CIRS')
+        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_CIRS/')
     elif sys.platform == 'darwin':
         workingPath = '/Users/yang/PinnWork'
         inputfolder = os.path.join(workingPath, 'Accuracy', 'CIRS_Raw/')
@@ -323,6 +351,7 @@ if __name__ == "__main__":
     pinnObject = pinn2Json()
     patientList = os.listdir(inputfolder)
     for patient in patientList:
+        CleaningPatientPool(os.path.join(inputfolder,patient))
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
             patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
             print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
