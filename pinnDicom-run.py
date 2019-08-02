@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import operator
 # import pydicom.uid
-import os
+import os,sys
 import os.path
 import re  # used for isolated values from strings
 import struct
@@ -13,7 +13,11 @@ import time  # used for getting current date and time for file
 from functools import reduce
 from random import randint
 
+from glob import glob
 import matplotlib.pyplot as plt
+from pymedphys.gamma import gamma_dicom, gamma_percent_pass, gamma_filter_numpy
+from pymedphys.dicom import zyx_and_dose_from_dataset
+
 import numpy as np
 import pydicom as dicom
 import pydicom.uid
@@ -250,13 +254,13 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
     Inputf = inputfolder
     Outputf = outputfolder
 
-    # print("Pinnacle tar folder path: " + Inputf)
+    print("Pinnacle tar folder path: " + Inputf)
     print("Current Patient: " + patientfolder)
     if not os.path.exists(Outputf + "%s" % (patientfolder)):
         # Create folder for exported DICOM files if it does not already exist
         os.makedirs(Outputf + "%s" % (patientfolder))
 
-    # print("Output location: " + Outputf)
+    print("Output location: " + Outputf)
 
     structsopinstuid = pydicom.uid.generate_uid()
     structds = createstructds()  # creating dataset for structure file
@@ -339,7 +343,7 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
     #structds.save_as(Outputf + "/%s/%s"%(patientfolder, structfilename))
     RS_test = dicomparser.DicomParser(structds)
     doseseriesuid = pydicom.uid.generate_uid()
-    # print("creating plan data structures \n")
+    print("creating plan data structures \n")
 
     #############################################################################################
     # loop below creates plan files for each plan in directory (based on what is in the Patient file)
@@ -354,7 +358,7 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
              (planids[i], planids[i]))
         if no_beams == True:
             continue
-        # print("Setting plan file name:")
+        print("Setting plan file name:")
 
         #exec("tempmetainstuid = plands_%s.file_meta.MediaStorageSOPInstanceUID"%planids[i])
 
@@ -365,7 +369,7 @@ def readpatient(temppatientfolder, inputfolder, outputfolder):
         print("Plan file name: " + planfilename)
         planfilepath = Outputf + patientfolder + "/" + planfilename
 
-        # print(planfilepath)
+        print(planfilepath)
         # print("\n Saving plan file \n")
         # exec("plands_%s.save_as(planfilepath)"%(planids[i]))
         exec('RP_test = dicomparser.DicomParser(plands_%s)' % (planids[i]))
@@ -546,7 +550,7 @@ def initglobalvars():
 
 
 def convertimages():
-    # print("Converting image patient name, birthdate and id to match pinnacle\n")
+    print("Converting image patient name, birthdate and id to match pinnacle\n")
     global patientname
     global pid
     global dob
@@ -598,7 +602,7 @@ def convertimages():
         currfile.write(preamble)
         currfile.write(b'DICM')
         # dicom.write_file(Outputf+"%s/CT.%s.dcm"%(patientfolder,tempinstuid), imageds, False)
-        # print("Current image: ", file)
+        print("Current image: ", file)
 ####################################################################################################################################################
 ####################################################################################################################################################
 
@@ -643,7 +647,7 @@ def createimagefiles():
                 frame_array = np.append(frame_array, temprow)
             allframeslist.append(frame_array)
 """
-    # print("Length of frames list: " + str(len(allframeslist)))
+    print("Length of frames list: " + str(len(allframeslist)))
     with open("%s%s/ImageSet_%s.ImageInfo" % (Inputf, patientfolder, imagesetnumber), 'rt', encoding=u'utf-8', errors='ignore') as f:
         image_info = f.readlines()
         curframe = 0
@@ -741,8 +745,8 @@ def createimagefiles():
                 imageuid.append(instuid)
                 image_orientation = ds.ImageOrientationPatient
                 posrefind = ds.PositionReferenceIndicator
-                # print("Creating image: " + Outputf + "%s/CT.%s.dcm" %
-                #       (patientfolder, instuid))
+                print("Creating image: " + Outputf + "%s/CT.%s.dcm" %
+                      (patientfolder, instuid))
                 # ds.save_as(Outputf + "%s/CT.%s.dcm" % (patientfolder, instuid))
                 curframe = curframe + 1
 ####################################################################################################################################################
@@ -776,10 +780,10 @@ def getheaderinfo():
                 ypixdim = float((line.split(" ")[-1]).replace(';', '')) * 10
             if "x_start =" in line and "index" not in line:
                 xstart = float((line.split(" ")[-1]).replace(';', ''))
-                # print("xstart = ", xstart)
+                print("xstart = ", xstart)
             if "y_start =" in line:
                 ystart = float((line.split(" ")[-1]).replace(';', ''))
-                # print("ystart = ", ystart)
+                print("ystart = ", ystart)
             if "z_dim =" in line:
                 z_dim = (line.split(" ")[-1]
                          ).replace(';', '').replace('\n', '')
@@ -787,10 +791,10 @@ def getheaderinfo():
                 slicethick = float((line.split(" ")[-1]).replace(';', '')) * 10
             if "z_start =" in line and "index" not in line:
                 zstart = float((line.split(" ")[-1]).replace(';', ''))
-                # print("zstart = ", zstart)
+                print("zstart = ", zstart)
             if "patient_position" in line:
                 temp_pos = (line.split(" ")[-1]).replace("\n", "")
-                # print("Patient_position is: " + temp_pos)
+                print("Patient_position is: " + temp_pos)
     return temp_pos
 ####################################################################################################################################################
 ####################################################################################################################################################
@@ -820,7 +824,7 @@ def getdateandtime():
 
 
 def readImageInfo():
-    # print("Reading image information for all image files\n")
+    print("Reading image information for all image files\n")
     global SeriesUID
     global StudyInstanceUID
     global FrameUID
@@ -861,7 +865,7 @@ def readImageInfo():
 # returns data structure ds
 ####################################################################################################################################################
 def createstructds():
-    # print("Creating Data structure")
+    print("Creating Data structure")
     global structfilename
     global structsopinstuid
     # Populate required values for file meta information
@@ -903,7 +907,7 @@ def getstructshift():
                 ypixdim = float((line.split(" ")[-1]).replace(';', ''))
             if "x_start =" in line and "index" not in line:
                 xstart = float((line.split(" ")[-1]).replace(';', ''))
-                # print("xstart = ", xstart)
+                print("xstart = ", xstart)
             if "y_start =" in line:
                 ystart = float((line.split(" ")[-1]).replace(';', ''))
             if "z_dim =" in line:
@@ -914,19 +918,19 @@ def getstructshift():
                 zstart = float((line.split(" ")[-1]).replace(';', ''))
     if patient_position == 'HFS':
         xshift = ((x_dim * xpixdim / 2) + xstart) * 10
-        # print("X shift = ", xshift)
+        print("X shift = ", xshift)
         yshift = -((y_dim * ypixdim / 2) + ystart) * 10
-        # print("Y shift = ", yshift)
+        print("Y shift = ", yshift)
         zshift = -((z_dim * zpixdim / 2) + zstart) * 10
-        # print("Z shift = ", zshift)
+        print("Z shift = ", zshift)
     elif patient_position == 'HFP':
         xshift = -((x_dim * xpixdim / 2) + xstart) * 10
 
-        # print("X shift = ", xshift)
+        print("X shift = ", xshift)
 
         yshift = ((y_dim * ypixdim / 2) + ystart) * 10
 
-        # print("Y shift = ", yshift)
+        print("Y shift = ", yshift)
         zshift = -((z_dim * zpixdim / 2) + zstart) * 10
     elif patient_position == 'FFP':
         xshift = ((x_dim * xpixdim / 2) + xstart) * 10
@@ -936,9 +940,9 @@ def getstructshift():
         zshift = ((z_dim * zpixdim / 2) + zstart) * 10
     elif patient_position == 'FFS':
         xshift = -((x_dim * xpixdim / 2) + xstart) * 10
-        # print("X shift = ", xshift)
+        print("X shift = ", xshift)
         yshift = -((y_dim * ypixdim / 2) + ystart) * 10
-        # print("Y shift = ", yshift)
+        print("Y shift = ", yshift)
         zshift = ((z_dim * zpixdim / 2) + zstart) * 10
 
 ####################################################################################################################################################
@@ -974,7 +978,7 @@ def createplands(plannumber):
 
 
 def initds(ds):
-    # print("initializing data structure\n")
+    print("initializing data structure\n")
     global imageuids
     global SeriesUID
     global StudyInstanceUID
@@ -1000,7 +1004,7 @@ def initds(ds):
     ds.ReferencedStudySequence[0].ReferencedSOPClassUID = '1.2.840.10008.3.1.2.3.2'
     ds.ReferencedStudySequence[0].ReferencedSOPInstanceUID = StudyInstanceUID
     ds.StudyInstanceUID = StudyInstanceUID
-    # print("Setting structure file study instance: " + str(StudyInstanceUID))
+    print("Setting structure file study instance: " + str(StudyInstanceUID))
     ds.SeriesInstanceUID = structseriesinstuid
     return ds
 ####################################################################################################################################################
@@ -1011,7 +1015,7 @@ def initds(ds):
 # function to read in patient info from Patient text file
 ####################################################################################################################################################
 def readpatientinfo(ds):
-    print ("Reading patient information\n")
+    print("Reading patient information\n")
     mname = ""
     flag_first = True
     flag_time = True
@@ -1102,12 +1106,12 @@ def readpatientinfo(ds):
                 ds.StructureSetLabel = plannamelist[plancount - 1]
             if "PrimaryCTImageSetID =" in line:
                 imagesetnumber = re.findall(r"[-+]?\d*\.\d+|\d+", line)[0]
-                # print("Image set number: " + imagesetnumber)
+                print("Image set number: " + imagesetnumber)
             if "    PlanID =" in line:
                 planids.append(re.findall(r"[-+]?\d*\.\d+|\d+", line)[0])
             if "    StudyID = " in line and flag_stid:
                 sid = re.findall(r'"([^"]*)"', line)[0]
-                # print ("Study id: ", sid)
+                print("Study id: ", sid)
                 ds.StudyID = sid
                 flag_stid = False
             if "WriteTimeStamp = " in line and flag_time:
@@ -1237,7 +1241,7 @@ def readpoints(ds, planfolder):
                 #
 
                 point_values.append(refpoint)
-                # print("refpoint:", refpoint)
+                print("refpoint:", refpoint)
                 # if isocenter == []:
                 #   isocenter = refpoint
                 if "ISO" in refptname.upper():
@@ -1281,7 +1285,7 @@ def readpoints(ds, planfolder):
 
     if len(isocenter) < 2:
         isocenter = ctcenter
-        # print("Isocenter not located, setting to ct center: ", str(isocenter))
+        print("Isocenter not located, setting to ct center: ", str(isocenter))
     if len(isocenter) < 2:
         #print("Isocenter still not located, setting to point with center in name, if not, with iso in name")
         temp_point1 = []
@@ -1304,7 +1308,7 @@ def readpoints(ds, planfolder):
                 # setting to first point if isocenter or ct center not found
                 isocenter = point_values[0]
                 #print("setting iso to actual value: " + str(isocenter))
-    # print("isocenter before loop to apply shifts to contour sequence points: " + str(isocenter))
+    print("isocenter before loop to apply shifts to contour sequence points: " + str(isocenter))
     for enteredpoints in ds.ROIContourSequence:
         #print("In loop applying shifts: isocenter:" + str(isocenter) )
         enteredpoints.ContourSequence[0].ContourData[0] = str(
@@ -1313,7 +1317,7 @@ def readpoints(ds, planfolder):
             float(enteredpoints.ContourSequence[0].ContourData[1]) - yshift)
         #enteredpoints.ContourSequence[0].ContourData[2] = str(float(enteredpoints.ContourSequence[0].ContourData[2]) - float(isocenter[2]))
         #print("bottom of loop applying shifts isocenter:" + str(isocenter))
-    # print("end of read points isocenter:" + str(isocenter))
+    print("end of read points isocenter:" + str(isocenter))
     return ds
 ####################################################################################################################################################
 ####################################################################################################################################################
@@ -1418,22 +1422,22 @@ def readroi(ds, planfolder):
                 if ROI_COUNT - prevroi <= len(Colors):
                     ds.ROIContourSequence[ROI_COUNT -
                                           1].ROIDisplayColor = Colors[ROI_COUNT - prevroi - 1]
-                    # print(ROI_COUNT - prevroi - 1)
+                    print(ROI_COUNT - prevroi - 1)
                 else:
                     if ROI_COUNT - 1 - len(Colors) < len(Colors):
                         ds.ROIContourSequence[ROI_COUNT -
                                               1].ROIDisplayColor = Colors[ROI_COUNT - 1 - len(Colors)]
-                        # print(ROI_COUNT - 1 - len(Colors))
+                        print(ROI_COUNT - 1 - len(Colors))
                     elif ROI_COUNT - 1 - len(Colors) - len(Colors) < len(Colors):
                         ds.ROIContourSequence[ROI_COUNT - 1].ROIDisplayColor = Colors[ROI_COUNT - 1 - len(
                             Colors) - len(Colors)]
-                        # print(ROI_COUNT - 1 - len(Colors) - len(Colors))
+                        print(ROI_COUNT - 1 - len(Colors) - len(Colors))
                     else:
                         ds.ROIContourSequence[ROI_COUNT - 1].ROIDisplayColor = Colors[ROI_COUNT - 1 - len(
                             Colors) - len(Colors) - len(Colors)]
-                        # print(ROI_COUNT - 1 - len(Colors) -
-                        #       len(Colors) - len(Colors))
-                # print(ROIName)
+                        print(ROI_COUNT - 1 - len(Colors) -
+                              len(Colors) - len(Colors))
+                print(ROIName)
             if "}; // End of ROI" in line:  # end of ROI found
                 #ROI_type = line[31:]
                 #ROI_type = ROI_type.replace('\n','')
@@ -1604,7 +1608,7 @@ def readtrial(ds, planfolder, plannumber):
     global PDD16MV
     global PDD10MV
     global PDD6MV
-    # print("Entering readtrial, isocenter: " + str(isocenter))
+    print("Entering readtrial, isocenter: " + str(isocenter))
     beamdoses = []
     beamdosefiles = []
     beamcount = 0
@@ -1695,8 +1699,8 @@ def readtrial(ds, planfolder, plannumber):
             elif int(current_dosefile_num) < 100:
                 current_dosefile_num = "0" + current_dosefile_num
             beamdosefiles.append(current_dosefile_num)
-            # print(current_dosefile_num)
-            # print(len(beamdosefiles))
+            print(current_dosefile_num)
+            print(len(beamdosefiles))
         if "Beam ={" in line and 'Proton' not in line:
             #print("Line that indicates beam information\n")
             # new beam
@@ -1753,8 +1757,8 @@ def readtrial(ds, planfolder, plannumber):
                 if nameofrefpt == name:
                     doserefpt = point_values[i]
             if doserefpt != []:
-                # print("Dose reference point: " + str([float(doserefpt[0]) - xshift, float(
-                #    doserefpt[1]) - yshift, float(doserefpt[2])]))
+                print("Dose reference point: " + str([float(doserefpt[0]) - xshift, float(
+                    doserefpt[1]) - yshift, float(doserefpt[2])]))
                 ds.FractionGroupSequence[0].ReferencedBeamSequence[beamcount - 1].BeamDoseSpecificationPoint = [float(
                     doserefpt[0]) - xshift, float(doserefpt[1]) - yshift, float(doserefpt[2])]  # Not sure if I need shifts here or not...?
             else:
@@ -1855,13 +1859,13 @@ def readtrial(ds, planfolder, plannumber):
         if "  Couch =" in line and ctrlptlist:
             psupportangle = re.findall(r"[-+]?\d*\.\d+|\d+", line)[0]
         if "     WedgeName = " in line and ctrlptlist:
-            # print("wedge name found")
+            print("wedge name found")
             if re.findall(r'"([^"]*)"', line)[0] == 'No Wedge' or re.findall(r'"([^"]*)"', line)[0] == "":
                 wedgeflag = False
-                # print("Wedge is no name")
+                print("Wedge is no name")
                 numwedges = 0
             elif "edw" in re.findall(r'"([^"]*)"', line)[0] or "EDW" in re.findall(r'"([^"]*)"', line)[0]:
-                # print("Wedge present")
+                print("Wedge present")
                 wedgetype = "DYNAMIC"
                 wedgeflag = True
                 numwedges = 1
@@ -1878,9 +1882,9 @@ def readtrial(ds, planfolder, plannumber):
                     wedgename = re.findall(
                         r'"([^"]*)"', line)[0].upper() + wedgeangle + "OUT"
                     wedgeorientation = '180'
-                # print("Wedge name = ", wedgename)
+                print("Wedge name = ", wedgename)
             elif "UP" in re.findall(r'"([^"]*)"', line)[0]:
-                # print("Wedge present")
+                print("Wedge present")
                 wedgetype = "STANDARD"
                 wedgeflag = True
                 numwedges = 1
@@ -1912,7 +1916,7 @@ def readtrial(ds, planfolder, plannumber):
                     wedgename = "W" + str(int(wedgeangle)) + \
                         "IN" + numberinname  # + "U"
                     wedgeorientation = '0'  # temporary until I find out what to put here
-                # print("Wedge name = ", wedgename)
+                print("Wedge name = ", wedgename)
         if "LeftJawPosition" in line and x1 == "":
             x1 = str(-float(re.findall(r"[-+]?\d*\.\d+|\d+", line)[0]) * 10)
             #print("X jaw 1:", x1, "\n")
@@ -2071,8 +2075,8 @@ def readtrial(ds, planfolder, plannumber):
                                     1].ControlPointSequence[j].PatientSupportAngle = psupportangle
                     ds.BeamSequence[beamcount -
                                     1].ControlPointSequence[j].PatientSupportRotationDirection = 'NONE'
-                    # print("Setting Isocenter postion: " + "[" + str(float(isocenter[0]) - xshift) + " , " + str(
-                    #    float(isocenter[1]) - yshift) + " , " + str(float(isocenter[2])) + "]")
+                    print("Setting Isocenter postion: " + "[" + str(float(isocenter[0]) - xshift) + " , " + str(
+                        float(isocenter[1]) - yshift) + " , " + str(float(isocenter[2])) + "]")
                     ds.BeamSequence[beamcount - 1].ControlPointSequence[j].IsocenterPosition = [
                         float(isocenter[0]) - xshift, float(isocenter[1]) - yshift, float(isocenter[2])]
                     ds.BeamSequence[beamcount -
@@ -2338,7 +2342,7 @@ def readtrial(ds, planfolder, plannumber):
         doseds.PixelData = pixel_binary_block
         ofile.close()
         dosefilename = "RD." + doseds.file_meta.MediaStorageSOPInstanceUID + ".dcm"
-        # print("\n Creating Dose file named : %s \n" % (dosefilename))
+        print("\n Creating Dose file named : %s \n" % (dosefilename))
         RD_test = dicomparser.DicomParser(doseds)
         # doseds.save_as(Outputf+"%s/%s"%(patientfolder,dosefilename))
     #ds.FractionGroupSequence[0].ReferencedDoseReferenceSequence = Sequence()
@@ -2396,7 +2400,7 @@ def creatertdose(plannumber, planfolder, beamnum, binarynum, beamdosevalue, numf
     file_meta.ImplementationClassUID = gImplementationClassUID
     # Create the FileDataset instance (initially no data elements, but file_meta supplied)
     RDfilename = "RD." + file_meta.MediaStorageSOPInstanceUID + ".dcm"
-    # print("Dose file name : " + RDfilename)
+    print("Dose file name : " + RDfilename)
 
     ds = FileDataset(RDfilename, {}, file_meta=file_meta,
                      preamble=b'\x00' * 128)
@@ -2615,33 +2619,30 @@ class dvhdata(DVH):
                 use: cGy for difference
             """
             if attr in ['volume', 'max', 'min', 'mean']:
-                val = ref.__getattribute__(attr)* 100
+                val = ref.__getattribute__(attr) * 100
                 cmpval = comp.__getattribute__(attr) * 100
             else:
                 val = ref.statistic(attr).value * 100
                 cmpval = comp.statistic(attr).value * 100
             return attr.capitalize() + ":", val, units, cmpval, units, \
-                   0 if not val else ((cmpval - val) / val) * 100, cmpval - val
+                0 if not val else ((cmpval - val) / val) * 100, cmpval - val
 
         def savefmtcmp(attr, units, ref=self, comp=dvh):
             """Generate arguments for string formatting.
             """
-            if attr == 'volume':
+            if attr in ['volume', 'max', 'min', 'mean']:
                 val = ref.__getattribute__(attr)
                 cmpval = comp.__getattribute__(attr)
-            elif attr in [ 'max', 'min', 'mean']:
-                val = ref.__getattribute__(attr)*100
-                cmpval = comp.__getattribute__(attr) * 100
             else:
-                val = ref.statistic(attr).value * 100
-                cmpval = comp.statistic(attr).value * 100
+                val = ref.statistic(attr).value
+                cmpval = comp.statistic(attr).value
             # strValue = str(comp.__getattribute__('notes') + ',' + comp.__getattribute__(
             #     'name') + ',' + attr.capitalize() + "," + str(val) + "," + units +
             #                "," + str(cmpval) + "," + units + "," + str(
             #     0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + "," + units + '\n')
-            strValue = str(comp.__getattribute__('notes') + ',' + comp.__getattribute__(
+            strValue = str(comp.__getattribute__(
                 'name') + ',' + attr.capitalize() + "," + str(val) +
-                           "," + str(cmpval) + "," + str(
+                "," + str(cmpval) + "," + str(
                 0 if not val else ((cmpval - val) / val) * 100) + "," + str(cmpval - val) + '\n')
 
             return strValue
@@ -2689,7 +2690,6 @@ class dvhdata(DVH):
         # print(self.volume_constraint(20, 'Gy'))
         # print(dvh.volume_constraint(20, 'Gy'))
 
-
         fileObj.write(savefmtcmp('volume', self.dose_units))
         fileObj.write(savefmtcmp('max', self.dose_units))
         fileObj.write(savefmtcmp('min', self.dose_units))
@@ -2704,8 +2704,6 @@ class dvhdata(DVH):
 
         # self.plot()
         # dvh.plot()
-
-
 
     def compare(self, dvh):
         """Compare the DVH properties with another DVH.
@@ -2746,7 +2744,7 @@ class dvhdata(DVH):
                 val = ref.statistic(attr).value
                 cmpval = comp.statistic(attr).value
             return attr.capitalize() + ":", val, units, cmpval, units, \
-                   0 if not val else ((cmpval - val) / val) * 100, cmpval - val
+                0 if not val else ((cmpval - val) / val) * 100, cmpval - val
 
         print("{:11} {:>14} {:>17} {:>17} {:>14}".format(
             'Structure:', self.name, dvh.name, 'Rel Diff', 'Abs diff'))
@@ -2809,288 +2807,126 @@ class dvhdata(DVH):
         h1 = self.bins
         h2 = dvh.bins
 
-        rms = np.sqrt(reduce(operator.add, map(lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
+        rms = np.sqrt(reduce(operator.add, map(
+            lambda a, b: (a - b) ** 2, h1, h2)) / len(h1))
         value = dvh.notes + ',' + dvh.name + ',' + str(rms) + '\n'
         fileObj.write(value)
         fileObj.close()
-        logging.info(rms)
+        print(rms)
+    # def OAR_constans(self,abs_dose):
+    #     self.cumulative
+    #     self.
 
-def compareTPSandCalc(inputfolder,outputfolder,tpsDVHsDir,resultData):
+
+def getTPSDCM(tpsDVHHome, patienMRN):
+    Rs = None
+    Rd = None
+    dirList = os.listdir(tpsDVHHome)
+    for dvh in dirList:
+        if dvh == patienMRN:
+            for dcm in os.listdir(os.path.join(tpsDVHHome, dvh)):
+                logging.info(dcm)
+                if 'RS' in dcm:
+                    Rs = pydicom.read_file(os.path.join(tpsDVHHome, dvh, dcm))
+                    Rs = dicomparser.DicomParser(Rs)
+                if 'RD' in dcm:
+                    Rd = pydicom.read_file(os.path.join(tpsDVHHome, dvh, dcm))
+                    Rd = dicomparser.DicomParser(Rd)
+        if Rs and Rd:
+            break
+    return Rs, Rd
+
+
+def compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData):
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
-            patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
-            print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
+            patientInfo = pinnObject.read(
+                os.path.join(inputfolder, patient, 'Patient'))
+            print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
+                  (patientInfo.FirstName + patientInfo.LastName))
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
+
+            # dcm_from_tps
+            (Rs_tps, Rd_tps) = getTPSDCM(
+                tpsDVHsDir, patientInfo.MedicalRecordNumber)
+            structs_tps = Rs_tps.GetStructures()
+
+            # from DoseComparison import DoseComparison
+            # gamma, nd = DoseComparison(Rd_tps.ds.pixel_array,Rd.ds.pixel_array,3,0.02)
+            # print(gamma,nd)
+            calcGamma(Rd_tps.ds,Rd.ds)
+
+            targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
+                             'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA']
             for (key, Roi) in structs.items():
-                print('============================')
-                print(key, Roi['name'])
-                if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
+                # print('============================')
+                logging.info("key=%d,ROI=%s", key, Roi['name'])
+                dvhCalc = None
+                dvhTps = None
+                # if Roi['name'].upper() in targetStructs:
+                if 'Mark' in Roi['name'] or 'point'in Roi['name'] or 'Iso' in Roi['name']:
                     continue
-                if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
-                    continue
-                elif Roi['type'] == 'ORGAN':
-                    logging.info('getdvH')
-                    dvh_tps = getTPSDVH(tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
-                    if dvh_tps:
-                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                        dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
-                                                  interpolation_segments_between_planes=2, use_structure_extents=True)
+                else:
+                    dvhCalc = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
 
-                    if dvh_tps and dvh_cal:
-                        logging.info('abs')
-                        logging.info(dvh_cal.volume)
-                        logging.info(dvh_tps.volume)
-
-                        dvhdata_cal = dvhdata(dvh_cal)
-                        dvhdata_tps = dvhdata(dvh_tps)
-                        dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
+                    for (item, contours) in structs_tps.items():
+                        if contours['name'].upper() == Roi['name'].upper():
+                            dvhTps = dvhcalc.get_dvh(
+                                Rs_tps.ds, Rd_tps.ds, item)
+                    if dvhCalc and dvhTps:
+                        dvhdata_cal = dvhdata(dvhCalc)
+                        dvhdata_tps = dvhdata(dvhTps)
+                        # dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
                         dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-                        dvhdata_cal = None
-                        dvhdata_tps = None
-                    dvh_tps = None
-                    dvh_cal = None
+                    else:
+                        logging.info('no validat data')
 
-def plotCompareDVHs():
-    pass
+def calcGamma(evaluation,reference):
+    gamma_options = {
+        'dose_percent_threshold': 1,
+        'distance_mm_threshold': 1,
+        'lower_percent_dose_cutoff': 10,
+        'interp_fraction': 1,  # Should be 10 or more for more accurate results
+        'max_gamma': 2,
+        'random_subset': None,
+        'local_gamma': True,
+        'ram_available': 2 ** 29  # 1/2 GB
+    }
 
-    # dvhdata_cal.plot()
-    # dvhdata_tps.plot()
-    # with open('dvhdatalist.pkl','ab+') as f:
-    #     dill.dump(dvhdata_cal,f)
-    #     dill.dump(dvhdata_tps,f)
-    #
-    # dvh_tps = getRelativeVolumeDVH(dvh_tps)
-    # if dvh_tps.name == 'GTV' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='GTV',linestyle='solid',color='y')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed',color='y')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'PGTV' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='PTV',linestyle='solid',color='r')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts,linestyle='dashed',color='r')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'CTV1' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='CTV',linestyle='solid',color='orange')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed',color='orange')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'PTV1' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='PTV',linestyle='solid',color='b')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts,linestyle='dashed',color='b')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'Brainstem' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name,linestyle='solid',color='y')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed',color='y')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'Mandible' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='Mandible',linestyle='solid',color='k')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed',color='k')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'Temp.joint_L' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='Temp.joints',linestyle='solid',color='g')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed',color='g')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'Parotid_R' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='Parotids',linestyle='solid',color='c')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed',color='c')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'Larynx' :
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='Larynx',linestyle='solid',color='m')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed',color='m')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # if dvh_tps.name == 'PTV1':
-    #     plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name,linestyle='solid',color='b')
-    #     plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_tps.name,linestyle='dashed',color='b')
-    #
-    #     plt.axis([0, 70, 0, 105])  # for relative volume
-    #     plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #     plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #     if dvh_tps.name:
-    #         plt.legend(loc='best')
-    #     plt.grid(True)
-    # for (key, Roi) in structs.items():
-    #     print('============================')
-    #     print(key, Roi['name'])
-    #     if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
-    #         continue
-    #     if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
-    #         continue
-    #     elif Roi['type'] == 'TARGET':
-    #
-    #         dvh_tps = getTPSDVH(
-    #             tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
-    #         if dvh_tps:
-    #             dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-    #             # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
-    #         if dvh_tps and dvh_cal:
-    #
-    #             plt.plot(dvh_tps.bincenters, dvh_tps.counts, label=dvh_tps.name, linestyle='dashed', color='r')
-    #             plt.axis([0, 70, 0, 110])  # for relative volume
-    #             plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-    #             plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
-    #             if dvh_tps.name:
-    #                 plt.legend("reference")
-    #             plt.grid(True)
-    #
-    #             dvh_cal = dvh_cal.relative_volume
-    #             dvh_tps = dvh_tps.relative_volume
-    #
-    #             dvhdata_cal = dvhdata(dvh_cal)
-    #             dvhdata_tps = dvhdata(dvh_tps)
-    #             dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
-    #             dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-    #
-    #             # plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='b')
-    #             # if dvh_tps.name:
-    #             #     plt.legend('0.4cm')
-    #             dvhdata_tps = None
-    #
-    #         if dvh_tps:
-    #             dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
-    #                                       interpolation_segments_between_planes=2, use_structure_extents=True)
-    #
-    #         if dvh_tps and dvh_cal:
-    #
-    #             dvh_cal = dvh_cal.relative_volume
-    #             dvh_tps = dvh_tps.relative_volume
-    #
-    #             dvhdata_cal = dvhdata(dvh_cal)
-    #             dvhdata_tps = dvhdata(dvh_tps)
-    #             dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
-    #             dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-    #
-    #             # plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='y')
-    #             # if dvh_tps.name:
-    #             #     plt.legend('0.1cm')
-    #             dvhdata_tps = None
-    #         if dvh_tps:
-    #             dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 8),
-    #                                       interpolation_segments_between_planes=2, use_structure_extents=True)
-    #         if dvh_tps and dvh_cal:
-    #             dvh_cal = dvh_cal.relative_volume
-    #             dvh_tps = dvh_tps.relative_volume
-    #
-    #             dvhdata_cal = dvhdata(dvh_cal)
-    #             dvhdata_tps = dvhdata(dvh_tps)
-    #             dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
-    #             dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-    #
-    #             # plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid',
-    #             #          color='y')
-    #             # if dvh_tps.name:
-    #             #     plt.legend('0.05')
-    #             dvhdata_tps = None
-    #
-    #         if dvh_tps:
-    #             dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 16),
-    #                                       interpolation_segments_between_planes=2, use_structure_extents=True)
-    #         if dvh_tps and dvh_cal:
-    #             dvh_cal = dvh_cal.relative_volume
-    #             dvh_tps = dvh_tps.relative_volume
-    #
-    #             dvhdata_cal = dvhdata(dvh_cal)
-    #             dvhdata_tps = dvhdata(dvh_tps)
-    #             dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
-    #             dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-    #
-    #             # plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid',
-    #             #          color='y')
-    #             # if dvh_tps.name:
-    #             #     plt.legend('0.025')
-    #             dvhdata_tps = None
-    #
-    #         if dvh_tps:
-    #             dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 32),
-    #                                       interpolation_segments_between_planes=2, use_structure_extents=True)
-    #         if dvh_tps and dvh_cal:
-    #             dvh_cal = dvh_cal.relative_volume
-    #             dvh_tps = dvh_tps.relative_volume
-    #
-    #             dvhdata_cal = dvhdata(dvh_cal)
-    #             dvhdata_tps = dvhdata(dvh_tps)
-    #             dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
-    #             dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-    #
-    #             # plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid',
-    #             #          color='g')
-    #             # if dvh_tps.name:
-    #             #     plt.legend('0.0125cm')
-    #             # plt.show()
-    #             dvhdata_tps = None
-    #
-    #         dvh_tps = None
-    #         dvh_cal = None
+    gamma = gamma_dicom(reference, evaluation, **gamma_options)
+    # axes_reference, dose_reference = zyx_and_dose_from_dataset(reference)
+    # gamma = gamma_percent_pass(reference,evaluation,3,2,'filter')
+    valid_gamma = gamma[~np.isnan(gamma)]
 
-    # plt.show()
+    num_bins = (gamma_options['interp_fraction'] * gamma_options['max_gamma'])
+    bins = np.linspace(0, gamma_options['max_gamma'], num_bins + 1)
 
-def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
-    fileobj = open(resultData,'w+')
+    plt.hist(valid_gamma, bins, density=True)
+    plt.xlim([0, gamma_options['max_gamma']])
+
+    pass_ratio = np.sum(valid_gamma <= 1) / len(valid_gamma)
+
+    plt.title("Local Gamma (0.5%/0.5mm) | Percent Pass: {0:.2f} %".format(pass_ratio * 100))
+    # plt.savefig('gamma_hist.png', dpi=300
+
+def compareVolume(inputfolder, outputfolder, tpsDVHsDir, resultData):
+    fileobj = open(resultData, 'w+')
     pinnObject = pinn2Json()
     patientDir = os.listdir(inputfolder)
     for patient in patientDir:
         if os.path.isfile(os.path.join(inputfolder, patient, 'Patient')):
-            patientInfo = pinnObject.read(os.path.join(inputfolder, patient, 'Patient'))
-            print(patientInfo.PatientID,patientInfo.MedicalRecordNumber, (patientInfo.FirstName + patientInfo.LastName))
+            patientInfo = pinnObject.read(
+                os.path.join(inputfolder, patient, 'Patient'))
+            print(patientInfo.PatientID, patientInfo.MedicalRecordNumber,
+                  (patientInfo.FirstName + patientInfo.LastName))
             (Rs, Rd) = readpatient(patient, inputfolder, outputfolder)
             structs = Rs.GetStructures()
             for (key, Roi) in structs.items():
                 # print('============================')
-                logging.info("key=%d,name=%s",key, Roi['name'])
+                logging.info("key=%d,name=%s", key, Roi['name'])
                 if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
                     continue
                 if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
@@ -3103,10 +2939,14 @@ def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
                     if dvh_tps:
                         dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
+                        # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
+                        #                          interpolation_segments_between_planes=2, use_structure_extents=True)
+                        # 4 / 32), interpolation_segments_between_planes=2, use_structure_extents=True)
                     if dvh_tps and dvh_cal:
                         dvh_cal_volume = dvh_cal.volume
                         dvh_tps_volume = dvh_tps.volume
-                        values =dvh_cal.name + ',' +  str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str((dvh_cal_volume-dvh_tps_volume) * 100/dvh_tps_volume) + '\n'
+                        values = dvh_cal.name + ',' + str(dvh_cal_volume) + ',' + str(dvh_tps_volume) + ',' + str(
+                            (dvh_cal_volume - dvh_tps_volume) * 100 / dvh_tps_volume) + '\n'
                         fileobj.write(values)
                         logging.info(values)
             Rs = None
@@ -3117,17 +2957,30 @@ def compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData):
 ####################################################################################################################################################
 ####################################################################################################################################################
 if __name__ == "__main__":
-    workingPath = '/home/peter/PinnWork'
-    inputfolder = os.path.join(workingPath,'Accuracy','Mount_496285/')
-    outputfolder = os.path.join(workingPath,'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath,'Accuracy','dvhs_P496285/')
+    #arg1,arg2,arg3 = sys.argv[1:]
+    workingPath = ''
+    inputfolder = ''
+    outputfolder = ''
+    tpsDVHsDir = ''
+    if sys.platform == 'linux' or sys.platform == 'linux2':
+        workingPath = '/home/peter/PinnWork'
+        inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_CIRS/')
+        outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
+        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_CIRS')
+    elif sys.platform == 'darwin':
+        workingPath = '/Users/yang/PinnWork'
+        inputfolder = os.path.join(workingPath, 'Accuracy', 'CIRS_Raw/')
+        outputfolder = os.path.join(workingPath, 'Accuracy', 'export/')
+        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'CIRS_Tps/')
+    elif sys.platform == 'win32':
+        pass
 
-    #log file
-    resultData = os.path.join(workingPath,'runlogger', time.strftime("%Y%m%d-%H%M%S") + 'dvhdata.csv')
+    # log file
+    resultData = os.path.join(workingPath, 'runlogger', time.strftime(
+        "%Y%m%d-%H%M%S") + 'dvhdata.csv')
 
     # compareVolume(inputfolder,outputfolder,tpsDVHsDir,resultData)
     compareTPSandCalc(inputfolder, outputfolder, tpsDVHsDir, resultData)
-
 
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
