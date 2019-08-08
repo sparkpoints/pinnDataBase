@@ -38,21 +38,22 @@ from pydicom.filebase import DicomFile
 from pydicom.sequence import Sequence
 
 from pinn2Json import pinn2Json
+from dvhdata import dvhdata
 
-# import logging
-# logging.basicConfig(level=logging.DEBUG,
-#                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
-#                     datefmt='%a, %d %b %Y %H:%M:%S',
-#                     filename='convert_whole_patient.log',
-#                     filemode='w')
-# # 定义一个StreamHandler，将INFO级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
-# console = logging.StreamHandler()
-# console.setLevel(logging.INFO)
-# formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-# console.setFormatter(formatter)
-# logging.getLogger('').addHandler(console)
-#
-# debugmode = True
+import logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                    datefmt='%a, %d %b %Y %H:%M:%S',
+                    filename='convert_whole_patient.log',
+                    filemode='w')
+# 定义一个StreamHandler，将INFO级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+logging.getLogger('').addHandler(console)
+
+debugmode = True
 
 
 def getTPSDCM(tpsDVHHome, patienMRN):
@@ -312,59 +313,61 @@ def calcGamma(refRD,evaRD):
         plt.savefig(os.path.join(data_path, plotName), dpi=300)
         plt.close()
 
-def calcDiff(refRS,refRD,evaRS,evaRD):
-    structRS = evaRS.GetStructures()
+def calcDiff(refRS, refRD, evaRS, evaRD, resultData):
+    targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
+                     'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA']
+
+    refrsds = dicomparser.DicomParser(pydicom.dcmread(refRS))
+    refrdds = dicomparser.DicomParser(pydicom.dcmread(refRD))
+    evarsds = dicomparser.DicomParser(pydicom.dcmread(evaRS))
+    evardds = dicomparser.DicomParser(pydicom.dcmread(evaRD))
+
+
+    structs = evarsds.GetStructures()
     for (key, Roi) in structs.items():
-        print('============================')
-        print(key, Roi['name'])
-        if Roi['type'] == 'MARKER' or 'Patient' in Roi['name'] or 'Opt.nerve' in Roi['name']:
-            continue
-        if 'Len' in Roi['name'] or 'plan' in Roi['name'] or '1+2' in Roi['name'] or 'NT' == Roi['name']:
-            continue
-        elif Roi['type'] == 'ORGAN':
-            logging.info('getdvH')
-            dvh_tps = getTPSDVH(tpsDVHsDir, patientInfo.MedicalRecordNumber, Roi['name'])
-            if dvh_tps:
-                # dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key)
-                dvh_cal = dvhcalc.get_dvh(Rs.ds, Rd.ds, key, interpolation_resolution=(4 / 4),
-                                          interpolation_segments_between_planes=2, use_structure_extents=True)
+        # print('============================')
+        logging.info("key=%d,ROI=%s", key, Roi['name'])
+        if Roi['name'].upper() in targetStructs:
+            logging.info('getDVH')
+            dvhCalc = None
+            dvhCalc = dvhcalc.get_dvh(evarsds.ds,evarsds.ds, key)
 
-            if dvh_tps and dvh_cal:
-                logging.info('abs')
-                logging.info(dvh_cal.volume)
-                logging.info(dvh_tps.volume)
-
-                dvhdata_cal = dvhdata(dvh_cal)
-                dvhdata_tps = dvhdata(dvh_tps)
-                dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
+            dvhTps = None
+            dvhTps  = dvhcalc.get_dvh(refrsds.ds,refrdds.ds, key)
+            if dvhCalc and dvhTps:
+                dvhdata_cal = dvhdata(dvhCalc)
+                dvhdata_tps = dvhdata(dvhTps)
+                # dvhdata_cal.cal_nrmsd(dvhdata_tps, resultData)
                 dvhdata_cal.getDifferences(dvhdata_tps, resultData)
-                dvhdata_cal = None
-                dvhdata_tps = None
-            dvh_tps = None
-            dvh_cal = None
+            else:
+                logging.info('no validat data')
 
-def calcCompTPS(tpsData_path,output_path):
+def calcCompTPS(tpsData_path,output_path,logfile):
     refRS = ''
     refRD = ''
     evaRS = ''
     evaRD = ''
+
+    # logobj = open(logfile,'w+')
 
     refRSList = glob(os.path.join(tpsData_path,'RS*.dcm'))
     if refRSList:
         refRS = refRSList[0]
     refRDList = glob(os.path.join(tpsData_path,'RD*.dcm'))
     if refRDList:
-        refRD = refRSList[0]
+        refRD = refRDList[0]
     evaRSList = glob(os.path.join(output_path, 'RS*.dcm'))
     if evaRSList:
         evaRS = evaRSList[0]
     evaRDList = glob(os.path.join(output_path, 'RD*.dcm'))
     if evaRDList:
         evaRD = evaRDList[0]
-    if refRD and evaRD:
-        calcGamma(refRD, evaRD)
+    # if refRD and evaRD:
+    #     calcGamma(refRD, evaRD)
     if refRS and refRD and evaRS and evaRD:
-        calcDiff(refRS,refRD,evaRS,evaRD)
+        calcDiff(refRS,refRD,evaRS,evaRD,logfile)
+
+    # logobj.close()
 
 if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
@@ -374,9 +377,9 @@ if __name__ == "__main__":
     tpsDVHsDir = ''
     if sys.platform == 'linux' or sys.platform == 'linux2':
         workingPath = '/home/peter/PinnWork'
-        inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_CIRS/')
+        inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_Lung12/')
         outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_CIRS/')
+        tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_Lung12/')
     elif sys.platform == 'darwin':
         workingPath = '/Users/yang/PinnWork'
         inputfolder = os.path.join(workingPath, 'Accuracy', 'CIRS_Raw/')
@@ -411,6 +414,6 @@ if __name__ == "__main__":
                 print('plan analysed! skip\n')
             tpsData_path = os.path.join(tpsDVHsDir,patientInfo.MedicalRecordNumber)
             if os.path.exists(output_path) and os.path.exists(tpsData_path):
-                calcCompTPS(tpsData_path,output_path)
+                calcCompTPS(tpsData_path,output_path,logfile )
 
 
