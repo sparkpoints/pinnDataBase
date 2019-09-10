@@ -3290,7 +3290,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                             plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Cord':
-                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='y')
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=u'脊髓', linestyle='solid', color='y')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='y')
 
                         # plt.axis([0, 70, 0, 105])  # for relative volume
@@ -3300,7 +3300,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                             plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Heart':
-                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='k')
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=u'心脏', linestyle='solid', color='k')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='k')
 
                         # plt.axis([0, 70, 0, 105])  # for relative volume
@@ -3310,7 +3310,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                             plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Trachea':
-                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='g')
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=u'食管', linestyle='solid', color='g')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='g')
 
                         # plt.axis([0, 70, 0, 105])  # for relative volume
@@ -3320,7 +3320,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                             plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Esophagus':
-                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='c')
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=u'气管', linestyle='solid', color='c')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='c')
 
                         # plt.axis([0, 70, 0, 105])  # for relative volume
@@ -3330,17 +3330,17 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                             plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Lung_Total':
-                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='m')
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=u'肺', linestyle='solid', color='m')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='m')
 
                         # plt.axis([0, 70, 0, 105])  # for relative volume
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legend(loc='best')
+                            plt.legend(bbox_to_anchor=(1, 1), loc=2, borderaxespad=0.)
                         plt.grid(True)
                     if dvh_tps.name == 'Patient':
-                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='b')
+                        plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=u'体轮廓', linestyle='solid', color='b')
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='b')
 
                         # plt.axis([0, 70, 0, 105])  # for relative volume
