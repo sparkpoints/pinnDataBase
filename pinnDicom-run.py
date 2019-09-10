@@ -15,8 +15,8 @@ from random import randint
 
 from glob import glob
 import matplotlib.pyplot as plt
-from pymedphys.gamma import gamma_dicom
-from pymedphys.dicom import zyx_and_dose_from_dataset
+# from pymedphys.gamma import gamma_dicom
+# from pymedphys.dicom import zyx_and_dose_from_dataset
 
 import numpy as np
 import pydicom as dicom
@@ -3041,7 +3041,7 @@ def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
                 tpsDVHsDir, patientInfo.MedicalRecordNumber)
             structs_tps = Rs_tps.GetStructures()
 
-<<<<<<< HEAD
+# <<<<<<< HEAD
             dvhTps = dvhcalc.get_dvh(Rs_tps.ds, Rd_tps.ds, 3)
             dvhTps = dvhTps.differential
             # dvhTps = dvhTps.relative_volume
@@ -3052,9 +3052,9 @@ def compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData):
 
 
             # fileObj.write(patientInfo.MedicalRecordNumber)
-=======
+# =======
             calcGamma(Rd,Rd_tps)
->>>>>>> 52f502506417ebb7ff19ec7a1e848bc516236f10
+# >>>>>>> 52f502506417ebb7ff19ec7a1e848bc516236f10
 
             targetStructs = ['GTV', 'CTV', 'PGTV', 'PTV',
                              'CORD', 'HEART', 'LUNG_TOTAL', 'TRACHEA','ESOPHAGUS','PATIENT']
@@ -3267,7 +3267,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'CTV':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='CTV', linestyle='solid', color='orange')
@@ -3277,7 +3277,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'PTV':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label='PTV', linestyle='solid', color='b')
@@ -3287,7 +3287,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Cord':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='y')
@@ -3297,7 +3297,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Heart':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='k')
@@ -3307,7 +3307,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Trachea':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='g')
@@ -3317,7 +3317,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Esophagus':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='c')
@@ -3327,7 +3327,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Lung_Total':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='m')
@@ -3337,7 +3337,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     if dvh_tps.name == 'Patient':
                         plt.plot(dvh_cal.bincenters, dvh_cal.counts, label=dvh_cal.name, linestyle='solid', color='b')
@@ -3347,7 +3347,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         # plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
                         # plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
                         if dvh_tps.name:
-                            plt.legent(loc='best')
+                            plt.legend(loc='best')
                         plt.grid(True)
                     #dvhdata_cal.cal_nrmsd(dvhdata_tps, patientInfo.MedicalRecordNumber, resultData)
                     # dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
@@ -3489,7 +3489,7 @@ if __name__ == "__main__":
     inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_0/')
     #inputfolder = '/media/PinnSETemp/NewPatients/Institution_3856/Mount_0/'
     outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', '496285_dDVHd/')
+    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_Lung12/')
 
     # log file
     currentTime = time.strftime("%Y%m%d-%H%M%S")
