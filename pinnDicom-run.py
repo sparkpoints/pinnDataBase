@@ -3253,8 +3253,8 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                         plt.plot(dvh_tps.bincenters, dvh_tps.counts, linestyle='dashed', color='y')
 
                         plt.axis([0, 70, 0, 105])  # for relative volume
-                        plt.xlabel('Dose [%s]' % dvh_tps.dose_units)
-                        plt.ylabel('Volume [%s]' % dvh_tps.volume_units)
+                        plt.xlabel('剂量 [%s]' % dvh_tps.dose_units)
+                        plt.ylabel('体积 [%s]' % dvh_tps.volume_units)
 
                         if dvh_tps.name:
                             plt.legend(loc='best')
@@ -3353,7 +3353,7 @@ def plotOnePatientcDVH(inputfolder,outputfolder,tpsDVHsDir,resultData):
                     # dvhdata_cal.getDifferences(dvhdata_tps,patientInfo.MedicalRecordNumber, resultData)
                 else:
                     logging.info('no validat data')
-    # plt.savefig('/home/peter/PinnWork/runlogger/dvh.eps',format='eps',dpi=600)
+    plt.savefig('/home/peter/PinnWork/runlogger/dvh.tif',format='tiff',dpi=1016)
     plt.show()
     fileobj.close()
 
@@ -3486,10 +3486,10 @@ if __name__ == "__main__":
     #arg1,arg2,arg3 = sys.argv[1:]
     # inputfolder = '/home/peter/PinnWork/NPC/'
     workingPath = '/home/peter/PinnWork'
-    # inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_0/')
-    inputfolder = '/media/PinnSETemp/NewPatients/Institution_3856/Mount_0/'
+    inputfolder = os.path.join(workingPath, 'Accuracy', 'Mount_0/')
+    #inputfolder = '/media/PinnSETemp/NewPatients/Institution_3856/Mount_0/'
     outputfolder = os.path.join(workingPath, 'export_dicom_pool/')
-    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', 'tps_dcm_Lung12/')
+    tpsDVHsDir = os.path.join(workingPath, 'Accuracy', '496285_dDVHd/')
 
     # log file
     currentTime = time.strftime("%Y%m%d-%H%M%S")
@@ -3503,9 +3503,9 @@ if __name__ == "__main__":
     #compare with export DiCOM data
     # compareVolumeDICOM(inputfolder,outputfolder,tpsDVHsDir,resultData)
     # compareTPSandCalcDICOM(inputfolder, outputfolder, tpsDVHsDir, resultData)
-    # plotOnePatientcDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
+    plotOnePatientcDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
     # plotOnePatientdDVH(inputfolder, outputfolder, tpsDVHsDir, resultData)
-    getBatchData(inputfolder, outputfolder, tpsDVHsDir, finishedData,resultData)
+    # getBatchData(inputfolder, outputfolder, tpsDVHsDir, finishedData,resultData)
     # dirs = os.listdir(inputfolder)
     # for dir in dirs:
     #     readpatient(dir,inputfolder,outputfolder)
