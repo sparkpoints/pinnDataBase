@@ -7,6 +7,7 @@ __pycache__/
 *.pkl
 
 .idea/
+samplebinarys*
 
 # C extensions
 *.so
@@ -107,3 +108,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+/samplebinaryslicevalues.txt
+/CIRS_2_Algorith/
+/CIRS_1_Model062/
+!/samplebinaryslicevalues.txt
