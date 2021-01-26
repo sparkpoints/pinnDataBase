@@ -1,0 +1,34 @@
+INFO:radiomics.featureextractor: No valid config parameter, using defaults: {'minimumROIDimensions': 2, 'minimumROISize': None, 'normalize': False, 'normalizeScale': 1, 'removeOutliers': None, 'resampledPixelSpacing': None, 'interpolator': 'sitkBSpline', 'preCrop': False, 'padDistance': 5, 'distances': [1], 'force2D': False, 'force2Ddimension': 0, 'resegmentRange': None, 'label': 1, 'additionalInfo': True}
+INFO:radiomics.featureextractor: Enabled image types: {'Original': {}}
+INFO:radiomics.featureextractor: Enabled features: {'firstorder': [], 'glcm': [], 'gldm': [], 'glrlm': [], 'glszm': [], 'ngtdm': [], 'shape': []}
+INFO:radiomics.featureextractor: Applying custom setting overrides: {'binWidth': 25, 'resampledPixelSpacing': None, 'interpolator': 3}
+DEBUG:radiomics.featureextractor: Settings: {'minimumROIDimensions': 2, 'minimumROISize': None, 'normalize': False, 'normalizeScale': 1, 'removeOutliers': None, 'resampledPixelSpacing': None, 'interpolator': 3, 'preCrop': False, 'padDistance': 5, 'distances': [1], 'force2D': False, 'force2Ddimension': 0, 'resegmentRange': None, 'label': 1, 'additionalInfo': True, 'binWidth': 25}
+DEBUG:radiomics.featureextractor: Disabling all feature classes
+DEBUG:radiomics.featureextractor: Updating enabled features with {'firstorder': ['Mean', 'Skewness']}
+DEBUG:radiomics.featureextractor: Enabled features: {'firstorder': ['Mean', 'Skewness']}
+INFO:radiomics.featureextractor: Calculating features with label: 1
+DEBUG:radiomics.featureextractor: Enabled images types: {'Original': {}}
+DEBUG:radiomics.featureextractor: Enabled features: {'firstorder': ['Mean', 'Skewness']}
+DEBUG:radiomics.featureextractor: Current settings: {'minimumROIDimensions': 2, 'minimumROISize': None, 'normalize': False, 'normalizeScale': 1, 'removeOutliers': None, 'resampledPixelSpacing': None, 'interpolator': 3, 'preCrop': False, 'padDistance': 5, 'distances': [1], 'force2D': False, 'force2Ddimension': 0, 'resegmentRange': None, 'label': 1, 'additionalInfo': True, 'binWidth': 25}
+INFO:radiomics.featureextractor: Loading image and mask
+DEBUG:radiomics.imageoperations: Force casting mask to UInt32 to ensure correct datatype.
+DEBUG:radiomics.imageoperations: Checking mask with label 1
+DEBUG:radiomics.imageoperations: Calculating bounding box
+DEBUG:radiomics.imageoperations: Checking minimum number of dimensions requirements (2)
+DEBUG:radiomics.featureextractor: Image and Mask loaded and valid, starting extraction
+DEBUG:radiomics.imageoperations: Cropping to size [47 70  7]
+DEBUG:radiomics.featureextractor: Creating image type iterator
+INFO:radiomics.featureextractor: Adding image type "Original" with custom settings: {}
+DEBUG:radiomics.featureextractor: Extracting features
+DEBUG:radiomics.imageoperations: Yielding original image
+INFO:radiomics.featureextractor: Calculating features for original image
+DEBUG:radiomics.imageoperations: Cropping to size [47 70  7]
+INFO:radiomics.featureextractor: Computing firstorder
+DEBUG:radiomics.firstorder: Initializing feature class
+DEBUG:radiomics.imageoperations: Discretizing gray levels inside ROI
+DEBUG:radiomics.imageoperations: Calculated 34 bins for bin width 25 with edges: [ 450  475  500  525  550  575  600  625  650  675  700  725  750  775
+  800  825  850  875  900  925  950  975 1000 1025 1050 1075 1100 1125
+ 1150 1175 1200 1225 1250 1275 1300])
+DEBUG:radiomics.firstorder: First order feature class initialized
+DEBUG:radiomics.firstorder: Calculating features
+DEBUG:radiomics.featureextractor: Features extracted
