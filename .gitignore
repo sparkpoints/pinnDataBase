@@ -6,7 +6,9 @@ __pycache__/
 .gitignore
 *.pkl
 samplebinaryslicevalues.txt
-
+.vscode/
+*.nrrd
+*.dcm
 
 .idea/
 samplebinarys*
