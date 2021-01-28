@@ -7,18 +7,14 @@ import os,re
 import SimpleITK as sitk
 import numpy as np
 
-
-rs = ''
-rp = ''
-rd = ''
+ct = []
+rs = []
+rp = []
+rd = []
 
 path = '/Users/yang/Downloads/ESO/120115'
 # fileL = glob('/Users/yang/Downloads/ESO/120115/*.dcm')
-# pattern = '%s/*.dcm'%path
-
-# fileList = glob(os.path.join(path,'*.dcm'))
-# print(fileList)
-pattern = '%s/*.dcm'%path
+ct = [lambda s:s in glob(os.path.joine(path,'CT*.dcm'))]
 
 fileList = glob(os.path.join(path,'*.dcm'))
 # print(fileList)

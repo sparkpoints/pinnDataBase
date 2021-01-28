@@ -7,11 +7,12 @@
 # Copyright (c) 2010 Roy Keyes
 # This file is part of dicompyler-core, released under a BSD license.
 #    See the file license.txt included with this distribution, also
+
 #    available at https://github.com/dicompyler/dicompyler-core/
 
 from __future__ import division
 import pylab as pl
-from dicompylercore import dicomparser, dvh, dvhcalc
+from dicompylercore import dicomparser, dose, dvh, dvhcalc
 import sys,os,glob
 import numpy as np
 import numpy.ma as ma
@@ -224,32 +225,12 @@ def main():
 
     # n = 0
     # planedata = {}
-
-    firstPlane = list(planes.keys())[0]
-    dose_dtype = rtdose.GetDoseGrid(firstPlane).dtype
-    dose_shape = rtdose.GetDoseGrid(firstPlane).T.shape
-    numPlanes = len(planes)
-
-    voxels_shape = dose_shape + (numPlanes,)
-    voxels_dtype = dose_dtype
-    voxelsDose = np.empty(voxels_shape, dtype=voxels_dtype, order='F')
-
-    n = 0
-    for z, plane in iteritems(planes):
-        # Get the dose plane for the current structure plane
-        planedose = rtdose.GetDoseGrid(z).T
-        voxelsDose[:, :, n] = planedose
-        n += 1
-
+    doseM = dose.DoseGrid(rtdosefile)
+    print(doseM)
     # print(voxelsDose.shape())
-    new_img = sitk.GetImageFromArray(voxelsDose)
-    voxelsSpace = dd['pixelspacing']
-    voxelsSpace.append(s['thickness'])
-    new_img.SetSpacing(voxelsSpace)
-    new_img.SetOrigin(dd['position'])
-    # direction = np.reshape(dd['orientation'],[2,3])
-    # new_img.SetDirection(direction)
-    # Generate the calculated DVHs
+    new_img = sitk.GetImageFromArray(doseM.dose_grid)
+    new_img.SetSpacing(doseM.scale)
+
     label_1 = sitk.ReadImage(rtssfile)
 
     params = os.path.join(os.getcwd(), '.', 'examples', 'exampleSettings', 'Params.yaml')
